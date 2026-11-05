@@ -1,5 +1,6 @@
-# v0.2.1 · Operation logic fixes / 操作逻辑修复版
+# v0.2.1 · Probably Stolen: Immersive Lyrics / 深空当铺沉浸歌词
 
+- New display name: Probably Stolen: Immersive Lyrics / 深空当铺沉浸歌词. Existing mod IDs, save bindings and configuration paths remain compatible.
 - Remember manual Disconnect across game/bridge restarts and setting changes.
 - Turning automatic reconnect back on resumes interrupted connections without overriding manual Disconnect.
 - Deduplicate pending playback clicks and add a short debounce for media state updates. Stop/eject pauses retain priority.

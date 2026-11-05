@@ -1,4 +1,4 @@
-# Deep Space Music Terminal / 深空音乐终端
+# Probably Stolen: Immersive Lyrics / 深空当铺沉浸歌词
 
 Pixel lyrics and desktop music controls for **Probably Stolen**. Windows x64 · **v0.2.1 test build**.
 
@@ -20,7 +20,7 @@ Use the original cassette player to control your desktop music client. Display d
 
 1. Exit the game. Extract the download. Copy **`Mods/DeepSpaceMusic`** into the game's **`Mods`** folder.
 2. Keep **`MusicBridge` outside the game's Mods folder**, then run `MusicBridge/MusicBridge.exe` and leave it running.
-3. In the game's Mods menu, enable Deep Space Music Terminal, review the game's permission prompts yourself, then restart the game.
+3. In the game's Mods menu, enable Probably Stolen: Immersive Lyrics, review the game's permission prompts yourself, then restart the game.
 4. Open your official music client, sign in normally, and play a song. Press **F10 → 连接与工具**, then select your platform; it connects immediately.
 5. Load your save, use **领取云音乐磁带** in the tools page, and place the cassette in the original cassette player's playback compartment.
 
