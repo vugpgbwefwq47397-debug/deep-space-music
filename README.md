@@ -2,6 +2,8 @@
 
 Pixel lyrics and desktop music controls for **Probably Stolen**. Windows x64 · **v0.1.0 preview**.
 
+**[Download v0.1.0 / 下载预览版](https://github.com/vugpgbwefwq47397-debug/deep-space-music/releases/tag/v0.1.0)** · [Windows ZIP](https://github.com/vugpgbwefwq47397-debug/deep-space-music/releases/download/v0.1.0/DeepSpaceMusic-v0.1.0-win-x64.zip) · [SHA-256 checksums](https://github.com/vugpgbwefwq47397-debug/deep-space-music/releases/download/v0.1.0/SHA256SUMS.txt)
+
 Use the original cassette player to control your desktop music client. Display draggable, synchronized lyrics with 10 continuous pixel effects. The F10 panel uses the game's machinery style; settings apply immediately and save automatically.
 
 ## 简介
