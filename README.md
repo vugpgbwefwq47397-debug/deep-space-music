@@ -4,6 +4,8 @@ Pixel lyrics and desktop music controls for **Probably Stolen**. Windows x64 · 
 
 **[Download v0.2.1 / 下载三平台预览版](https://github.com/vugpgbwefwq47397-debug/deep-space-music/releases/tag/v0.2.1)** · [Windows ZIP](https://github.com/vugpgbwefwq47397-debug/deep-space-music/releases/download/v0.2.1/DeepSpaceMusic-v0.2.1-win-x64.zip) · [SHA-256 checksums](https://github.com/vugpgbwefwq47397-debug/deep-space-music/releases/download/v0.2.1/SHA256SUMS.txt)
 
+**[Steam Workshop / 创意工坊](https://steamcommunity.com/sharedfiles/filedetails/?id=3834309955)** installs the game mod. Download the Windows ZIP above for the required external MusicBridge, and keep it outside Mods.
+
 Use the original cassette player to control your desktop music client. Display draggable, synchronized lyrics with 10 continuous pixel effects. The F10 panel uses the game's machinery style; settings apply immediately and save automatically.
 
 ## 简介
