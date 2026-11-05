@@ -1,0 +1,8 @@
+Copyright (c) 2026 vugpgbwefwq47397-debug.
+All rights reserved for original Deep Space Music Terminal project code and original project materials.
+
+Source is published for inspection. No MIT or other open-source license is granted by this notice.
+
+Third-party font software, Microsoft runtime components, and other third-party materials retain their own copyright notices and licenses. This notice does not override or restrict rights granted by those licenses.
+
+Game resources and game assemblies are provided by the user's separately installed copy of Probably Stolen and are not redistributed here.
