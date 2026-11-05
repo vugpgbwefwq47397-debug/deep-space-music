@@ -8,8 +8,8 @@ static class Deck {
     public static bool Active(GameItem machine)=>Owner==machine && Terminal.Instance!=null && Terminal.Instance.Bound;
     public static bool IsCloud(GameItem machine)=>machine.GetTagReadonly("CURRENT_PLAYING_TRACK_ID_TAG").GetString()==ModEntry.Track;
     public static void Bind(GameItem machine) {if(Owner!=machine) UnityEngine.Debug.Log("[DeepSpaceMusic] Bound to original cassette player");Owner=machine;if(Terminal.Instance!=null) Terminal.Instance.Bound=true;}
-    public static void Release(bool pause) {if(Terminal.Instance!=null) {Terminal.Instance.Bound=false;if(pause) Terminal.Instance.Send("command","pause");}Owner=null;}
-    public static void Command(string command) {Terminal.Instance?.Send("command",command);}
+    public static void Release(bool pause) {if(Terminal.Instance!=null) {Terminal.Instance.Bound=false;if(pause) Terminal.Instance.Send("command","pause",urgent:true);}Owner=null;}
+    public static void Command(string command,bool urgent=false) {Terminal.Instance?.Send("command",command,urgent);}
     public static void State(GameItem machine,int value) {if(machine.GetTagReadonly("CASETTE_PLAYER_STATE_INT").GetInt()!=value) machine.ModifyTag("CASETTE_PLAYER_STATE_INT",t=>t.SetInt(value));}
 }
 [HarmonyPatch(typeof(MachineCassettePlayer),"PlayTrackAtIndex")]
@@ -33,7 +33,7 @@ static class Play {
 }
 [HarmonyPatch(typeof(MachineCassettePlayer),"OnStopButtonPressed")]
 static class Stop {
-    static bool Prefix(GameItem machine) {if(!Deck.Active(machine))return true;Deck.Command("pause");Deck.State(machine,0);Deck.Release(false);return false;}
+    static bool Prefix(GameItem machine) {if(!Deck.Active(machine))return true;Deck.Command("pause",urgent:true);Deck.State(machine,0);Deck.Release(false);return false;}
 }
 [HarmonyPatch(typeof(MachineCassettePlayer),"OnNextButtonPressed")]
 static class Next {

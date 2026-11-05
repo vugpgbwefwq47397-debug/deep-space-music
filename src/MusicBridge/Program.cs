@@ -7,20 +7,21 @@ var json=new JsonSerializerOptions {IncludeFields=true};
 string root=Environment.GetEnvironmentVariable("DEEP_SPACE_MUSIC_DATA") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"DeepSpaceMusic");
 Directory.CreateDirectory(root);
 var automaticLyrics=new AutomaticLyrics(new LocalLyricsProvider(Path.Combine(root,"Lyrics")));
-var sessions=new Sessions(automaticLyrics);
+using var sessions=new Sessions(automaticLyrics);
 if(args.Length==4 && args[0]=="--lyrics-check") {var list=automaticLyrics.Get(args[1],args[2],long.Parse(args[3]));for(int attempt=0;attempt<20 && automaticLyrics.Status=="loading_lrclib";attempt++){await Task.Delay(500);list=automaticLyrics.Get(args[1],args[2],long.Parse(args[3]));}Console.WriteLine(JsonSerializer.Serialize(new {source=automaticLyrics.Status,lineCount=list.Count}));return;}
 
 var config=Path.Combine(root,"bridge.json");
-if(File.Exists(config)) {try {var saved=JsonSerializer.Deserialize<Request>(File.ReadAllText(config),json); if(saved!=null && saved.platform is "qq" or "netease") {sessions.Platform=saved.platform;sessions.AutoReconnect=saved.autoReconnect;sessions.Offset=Math.Clamp(saved.offsetMs,-10000,10000);sessions.WantConnection=saved.autoReconnect;}} catch(JsonException) {Console.Error.WriteLine("配置损坏，请重新选择平台");}}
-if(args.Contains("--probe")) {foreach(var p in new[]{"netease","qq"}) {sessions.Disconnect(); sessions.Platform=p;sessions.WantConnection=true;try{Console.WriteLine(JsonSerializer.Serialize(await sessions.Read(),json));}catch(Exception e){Console.WriteLine(e.Message);}} return;}
+if(File.Exists(config)) {try {var saved=JsonSerializer.Deserialize<Request>(File.ReadAllText(config),json); if(saved!=null && MusicPlatforms.IsSupported(saved.platform)) {sessions.Platform=saved.platform;sessions.Offset=Math.Clamp(saved.offsetMs,-10000,10000);sessions.RestoreConnection(saved.autoReconnect,saved.connectionEnabled);}} catch(JsonException) {Console.Error.WriteLine("配置损坏，请重新选择平台");}}
+if(args.Contains("--probe")) {foreach(var p in MusicPlatforms.Ids) {sessions.Disconnect(); sessions.Platform=p;sessions.WantConnection=true;try{Console.WriteLine(JsonSerializer.Serialize(await sessions.Read(),json));}catch(Exception e){Console.WriteLine(e.Message);}} return;}
 if(args.Contains("--timeline")){var manager=await Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager.RequestAsync();foreach(var s in manager.GetSessions().Where(s=>Sessions.Matches("qq",s.SourceAppUserModelId))){var t=s.GetTimelineProperties();Console.WriteLine(JsonSerializer.Serialize(new {position=t.Position.TotalMilliseconds,end=t.EndTime.TotalMilliseconds,updated=t.LastUpdatedTime,now=DateTimeOffset.UtcNow},json));}return;}
+if(args.Length==2 && args[0]=="--watch") {if(!MusicPlatforms.IsSupported(args[1]))throw new InvalidDataException("未知平台");sessions.Platform=args[1];sessions.WantConnection=true;for(int i=0;i<20;i++){Console.WriteLine(JsonSerializer.Serialize(await sessions.Read(),json));await Task.Delay(500);}return;}
 
 if(args.Length==3 && args[0]=="--command") {sessions.Platform=args[1];sessions.WantConnection=true;var result=await sessions.Control(args[2]);Console.WriteLine(JsonSerializer.Serialize(new {result.ok,result.result,state=await sessions.Read()},json));return;}
 string pipeName=Environment.GetEnvironmentVariable("DEEP_SPACE_MUSIC_PIPE") ?? "DeepSpaceMusic.v1";
 if(pipeName.Length>64 || pipeName.Length==0 || pipeName.Any(c=>!char.IsAsciiLetterOrDigit(c) && c is not ('.' or '-' or '_')))throw new InvalidDataException("无效的本地管道名称");
 using var singleton=new Mutex(true,pipeName=="DeepSpaceMusic.v1"?"Local\\DeepSpaceMusicBridge":"Local\\"+pipeName,out bool created);
 if(!created) {Console.Error.WriteLine("桥接服务已在运行");return;}
-Console.WriteLine("Deep Space MusicBridge 0.1 | 本机当前用户命名管道 | Ctrl+C 退出\n本地歌词: "+Path.Combine(root,"Lyrics"));
+Console.WriteLine("Deep Space MusicBridge 0.2 | 本机当前用户命名管道 | Ctrl+C 退出\n本地歌词: "+Path.Combine(root,"Lyrics"));
 using var stop=new CancellationTokenSource();
 Console.CancelKeyPress+=(s,e)=>{e.Cancel=true;stop.Cancel();};
 while(!stop.IsCancellationRequested) {
@@ -41,27 +42,29 @@ while(!stop.IsCancellationRequested) {
             switch(req.action) {
                 case "status": break;
                 case "connect":
-                    if(req.platform is not ("qq" or "netease")) throw new InvalidDataException("请先选择网易云音乐或 QQ 音乐");
+                    if(!MusicPlatforms.IsSupported(req.platform)) throw new InvalidDataException("请先选择网易云音乐、QQ 音乐或酷狗音乐");
                     sessions.Disconnect();sessions.Platform=req.platform;sessions.AutoReconnect=req.autoReconnect;sessions.Offset=Math.Clamp(req.offsetMs,-10000,10000);sessions.WantConnection=true;
                     
-                    req.offsetMs=sessions.Offset;File.WriteAllText(config,JsonSerializer.Serialize(req,json));break;
+                    req.offsetMs=sessions.Offset;req.connectionEnabled=true;File.WriteAllText(config,JsonSerializer.Serialize(req,json));break;
                 case "disconnect":
-                    sessions.Disconnect();
+                    if(!string.IsNullOrEmpty(req.platform) && req.platform!="未选择" && req.platform!=sessions.Platform)throw new InvalidDataException("断开平台与当前连接不一致，请重新检测");
+                    sessions.Disconnect(manual:true);
                     if(req.platform=="未选择") {
                         sessions.Platform="";sessions.Offset=Math.Clamp(req.offsetMs,-10000,10000);sessions.AutoReconnect=req.autoReconnect;
-                        File.WriteAllText(config,JsonSerializer.Serialize(new Request {platform="",offsetMs=sessions.Offset,autoReconnect=sessions.AutoReconnect},json));
                     }
+                    File.WriteAllText(config,JsonSerializer.Serialize(new Request {platform=sessions.Platform,offsetMs=sessions.Offset,autoReconnect=sessions.AutoReconnect,connectionEnabled=false},json));
                     break;
                 case "openClient":
+                    if(req.platform!=sessions.Platform)throw new InvalidDataException("选歌平台与当前连接不一致，请重新连接");
                     result=ClientPanel.Open(req.platform);break;
                 case "queue":
                 case "playQueue":
-                    throw new InvalidOperationException("游戏内歌单已取消，请双击磁带并点击打开 QQ 音乐选歌");
+                    throw new InvalidOperationException("游戏内歌单已取消，请双击磁带并点击打开所选音乐客户端选歌");
                 case "configure":
                     int offset=Math.Clamp(req.offsetMs,-10000,10000);
                     if(sessions.AutoReconnect!=req.autoReconnect || sessions.Offset!=offset) {
                         sessions.AutoReconnect=req.autoReconnect;sessions.Offset=offset;
-                        if(sessions.Platform is "qq" or "netease") File.WriteAllText(config,JsonSerializer.Serialize(new Request {platform=sessions.Platform,autoReconnect=sessions.AutoReconnect,offsetMs=sessions.Offset},json));
+                        if(MusicPlatforms.IsSupported(sessions.Platform)) File.WriteAllText(config,JsonSerializer.Serialize(new Request {platform=sessions.Platform,autoReconnect=sessions.AutoReconnect,offsetMs=sessions.Offset,connectionEnabled=sessions.ConnectionEnabled},json));
                     }
                     break;
                 case "reload":sessions.ReloadLyrics();break;

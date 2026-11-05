@@ -15,5 +15,6 @@ try {
  $sdkRoot=Split-Path (Get-Command $Dotnet).Source
  foreach($notice in @('LICENSE.txt','ThirdPartyNotices.txt')) {if(Test-Path -LiteralPath "$sdkRoot/$notice") {Copy-Item -LiteralPath "$sdkRoot/$notice" -Destination dist/MusicBridge}}
  Copy-Item README.md dist
+ Copy-Item THIRD-PARTY-LICENSES dist/MusicBridge -Recurse -Force
  Write-Output 'Built dist. Keep MusicBridge OUTSIDE the game Mods directory.'
 } finally {Pop-Location}

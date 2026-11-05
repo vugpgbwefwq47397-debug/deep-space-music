@@ -11,22 +11,23 @@ public class Terminal : MonoBehaviour {
     public static Terminal Instance;
     public Snapshot State=new Snapshot {bridge="offline"};
     public bool Bound;
-    struct Reply {public int epoch;public string payload,action;}
+    struct Reply {public int epoch,token,view;public bool cancelled;public string payload,action;}
     readonly ConcurrentQueue<Reply> responses=new ConcurrentQueue<Reply>();
     readonly CancellationTokenSource stop=new CancellationTokenSource();
     bool polling,settingsDirty;float pollAt,saveAt,transition,diagnosticUntil;
-    int epoch;
+    int epoch,viewRevision;
     string lastKey="",lastTrack="",lastSettings="";TextMeshProUGUI current,next,outgoing;
     string diagnostic="",lastError="";
     Canvas canvas; CustomUIWindow panel; TMP_Text status,feedback;
-    bool openingClient;
+    readonly PendingOperation clientOperation=new PendingOperation();
+    readonly PendingOperation commandOperation=new PendingOperation(.25);
     TMP_FontAsset pixelFont;
     CustomUIWindow pickerPanel,toolsPanel;TMP_Text details;
     public float AnimationClock {get;private set;}
     public bool MotionActive=>Bound && State.playback=="playing";
     void Awake() {
         Instance=this;
-        if(ModEntry.Reconnect.Value && ModEntry.Platform.Value!="未选择") Send("connect");
+        if(ModEntry.Reconnect.Value && ModEntry.ConnectionEnabled.Value && MusicPlatforms.IsSupported(ModEntry.Platform.Value)) Send("connect");
     }
     IEnumerator Start() {
         while(FontLoader.Instance==null) yield return null;
@@ -46,30 +47,47 @@ public class Terminal : MonoBehaviour {
         text.raycastTarget=true;text.richText=false;text.enableWordWrapping=false;text.overflowMode=TextOverflowModes.Ellipsis;
         text.rectTransform.sizeDelta=new Vector2(1300,65);go.AddComponent<NeonDrag>();go.AddComponent<PixelWiggle>();go.SetActive(true);return text;
     }
-    public void Send(string action,string command="") {
+    public void Send(string action,string command="",bool urgent=false) {
         if(action=="command" && (ModEntry.Platform.Value=="未选择" || State.platform!=ModEntry.Platform.Value)) {diagnostic="请先选择平台并连接，当前会话与所选平台不一致";diagnosticUntil=Time.unscaledTime+5;return;}
+        // Eject/stop must still pause after an earlier control request finishes.
+        if(action=="command" && command=="pause" && urgent)commandOperation.Reset();
+        int token=0;
+        if(action=="command" && !commandOperation.TryBegin(Time.unscaledTime,out token)) {diagnostic="播放操作正在处理，请稍候";diagnosticUntil=Time.unscaledTime+2;return;}
         if(action=="connect" || action=="disconnect") {
+            ModEntry.ConnectionEnabled.Set(action=="connect");SaveSettings();
+            commandOperation.Reset();clientOperation.Reset();
             epoch++;lastSettings="";diagnostic="";
             State=new Snapshot {platform=ModEntry.Platform.Value};
         }
         var req=new Request {clientVersion=2,action=action,command=command,platform=ModEntry.Platform.Value,autoReconnect=ModEntry.Reconnect.Value,offsetMs=ModEntry.Offset.Value};
-        var payload=JsonUtility.ToJson(req);_ = SendRaw(payload,action);
+        var payload=JsonUtility.ToJson(req);_ = SendRaw(payload,action,token);
     }
-    async Task<bool> SendRaw(string payload,string action="") {
+    async Task<bool> SendRaw(string payload,string action="",int token=0,int view=-1) {
         int version=epoch;
-        try {responses.Enqueue(new Reply {epoch=version,action=action,payload=await IpcClient.Call(payload,stop.Token)});return true;}
-        catch(Exception e) {if(!stop.IsCancellationRequested) responses.Enqueue(new Reply {epoch=version,action=action,payload="ERROR:"+e.Message});return false;}
+        try {
+            string reply=await IpcClient.Call(payload,stop.Token,()=>version==epoch && (action!="openClient" || view==viewRevision));
+            responses.Enqueue(new Reply {epoch=version,action=action,token=token,view=view,payload=reply});
+            return PlaybackPresentation.Normalize(JsonUtility.FromJson<Snapshot>(reply)).ok;
+        }
+        catch(Exception e) {if(!stop.IsCancellationRequested) responses.Enqueue(new Reply {epoch=version,action=action,token=token,view=view,cancelled=e is OperationCanceledException,payload="ERROR:"+e.Message});return false;}
     }
     async void Poll(string settings) {
         polling=true;
         try {
+            int connectionVersion=epoch;
+            if(State.bridge=="offline" && ModEntry.Reconnect.Value && ModEntry.ConnectionEnabled.Value && MusicPlatforms.IsSupported(ModEntry.Platform.Value)) {
+                // Re-establish only an enabled connection after the bridge returns.
+                // Never undo an explicit Disconnect, and never open a client here.
+                var reconnect=new Request {clientVersion=2,action="connect",platform=ModEntry.Platform.Value,autoReconnect=true,offsetMs=ModEntry.Offset.Value};
+                if(!await SendRaw(JsonUtility.ToJson(reconnect)) || connectionVersion!=epoch)return;
+            }
             if(settings!=lastSettings || State.bridge=="offline") {
                 int version=epoch;
                 if(await SendRaw(settings) && version==epoch)lastSettings=settings;
             }
             await SendRaw("{\"protocolVersion\":1,\"clientVersion\":2,\"action\":\"status\"}");
         }
-        finally {polling=false;}
+        finally {polling=false;if(State.bridge=="offline")pollAt=Time.unscaledTime+1;}
     }
     void Update() {
         if(Input.GetKeyDown(KeyCode.F10)) {if((panel!=null && panel.IsAlive) || (toolsPanel!=null && toolsPanel.IsAlive) || (pickerPanel!=null && pickerPanel.IsAlive))CloseWindows();else Open();}
@@ -79,8 +97,9 @@ public class Terminal : MonoBehaviour {
             Poll(JsonUtility.ToJson(new Request {clientVersion=2,action="configure",offsetMs=ModEntry.Offset.Value,autoReconnect=ModEntry.Reconnect.Value}));
         }
         while(responses.TryDequeue(out var response)) {
-            if(response.action=="openClient")openingClient=false;
-            if(response.epoch!=epoch)continue;
+            if(response.action=="openClient")clientOperation.Complete(response.token,Time.unscaledTime);
+            if(response.action=="command")commandOperation.Complete(response.token,Time.unscaledTime);
+            if(response.cancelled || response.epoch!=epoch)continue;
             try {
                 State=response.payload.StartsWith("ERROR:")?new Snapshot {ok=false,bridge="offline",error="本地桥接服务未启动或连接失败："+response.payload.Substring(6)}:PlaybackPresentation.Normalize(JsonUtility.FromJson<Snapshot>(response.payload));
             } catch(Exception e) {State=new Snapshot {ok=false,bridge="offline",error="桥接状态无效："+e.Message};}
@@ -88,7 +107,7 @@ public class Terminal : MonoBehaviour {
             lastError=State.error;
             if(State.result.Length>0) {diagnostic=State.result;diagnosticUntil=Time.unscaledTime+5;}
             if(response.action.Length>0 && !State.ok) {diagnostic=State.error;diagnosticUntil=Time.unscaledTime+8;}
-            if(response.action=="openClient" && State.ok)CloseWindows();
+            if(response.action=="openClient" && State.ok && response.view==viewRevision)CloseWindows();
         }
         if(Bound && Deck.Owner!=null) Deck.State(Deck.Owner,State.connected?(State.playback=="playing"?1:2):0);
         if(EmporiumEntry.Instance==null && Bound) Deck.Release(ModEntry.PauseEject.Value);
@@ -129,6 +148,7 @@ public class Terminal : MonoBehaviour {
     void SaveSettings() {settingsDirty=true;saveAt=Time.unscaledTime+.4f;}
     static string OffsetLabel()=>(ModEntry.Offset.Value>=0?"提前 ":"延后 ")+Math.Abs(ModEntry.Offset.Value)+" ms";
     void CloseWindows() {
+        viewRevision++;
         var manager=CustomUIManager.Instance;
         if(manager!=null) {manager.CloseWindow(ModEntry.Id+".status");manager.CloseWindow(ModEntry.Id+".tools");manager.CloseWindow(ModEntry.Id+".picker");}
         panel=toolsPanel=pickerPanel=null;status=details=feedback=null;
@@ -139,7 +159,7 @@ public class Terminal : MonoBehaviour {
         builder.BeginPanel(padding:12,spacing:8);
         builder.AddLabel("当前歌曲", "status");status=builder.Last.text;
         builder.Last.SetPreferredSize(-1,76);status.maxVisibleLines=2;status.enableWordWrapping=false;status.overflowMode=TextOverflowModes.Ellipsis;
-        builder.BeginRow(12).AddButton("打开 QQ 音乐选歌",OpenQqMusic);TerminalUI.Fill(builder.Last);
+        builder.BeginRow(12).AddButton(MusicPlatforms.OpenLabel(ModEntry.Platform.Value),OpenSelectedClient);TerminalUI.Fill(builder.Last);
         builder.AddButton("连接与工具",OpenTools);TerminalUI.Fill(builder.Last);builder.End().End();
         builder.AddHeader("字幕样式");
         builder.BeginRow(24);
@@ -171,7 +191,7 @@ public class Terminal : MonoBehaviour {
         CloseWindows();
         var builder=TerminalUI.Window(".tools","音乐终端 / 连接与工具",720,630);
         builder.AddHeader("音乐来源");
-        TerminalUI.Dropdown(builder,new[]{"请选择平台","网易云音乐","QQ 音乐"},ModEntry.Platform.Value=="qq"?2:ModEntry.Platform.Value=="netease"?1:0,i=>{ModEntry.Platform.Set(i==1?"netease":i==2?"qq":"未选择");SaveSettings();Send(i==0?"disconnect":"connect");});
+        TerminalUI.Dropdown(builder,MusicPlatforms.Labels,MusicPlatforms.Index(ModEntry.Platform.Value),i=>{if(ModEntry.Platform.Value==MusicPlatforms.Choices[i])return;ModEntry.Platform.Set(MusicPlatforms.Choices[i]);SaveSettings();Send(i==0?"disconnect":"connect");});
         builder.BeginRow(12).AddButton("连接 / 重新检测",()=>Send("connect"));TerminalUI.Fill(builder.Last);
         builder.AddButton("断开",()=>Send("disconnect"));TerminalUI.Fill(builder.Last);builder.End();
         builder.AddToggle("自动重连",ModEntry.Reconnect.Value,v=>{ModEntry.Reconnect.Set(v);SaveSettings();});
@@ -186,11 +206,23 @@ public class Terminal : MonoBehaviour {
         toolsPanel=TerminalUI.Show(builder,pixelFont);
         details.text=State.error.Length>0?State.error:diagnostic.Length>0?diagnostic:State.connected?"音乐客户端已连接。":"尚未连接，请选择平台并连接。";
     }
-    void OpenQqMusic() {
-        if(openingClient)return;
-        openingClient=true;
-        if(ModEntry.Platform.Value!="qq" || !State.connected || State.platform!="qq") {ModEntry.Platform.Set("qq");SaveSettings();Send("connect");}
-        _=SendRaw(JsonUtility.ToJson(new Request {clientVersion=2,action="openClient",platform="qq"}),"openClient");
+    async void OpenSelectedClient() {
+        string platform=ModEntry.Platform.Value;
+        if(!MusicPlatforms.IsSupported(platform)) {OpenTools();return;}
+        if(!clientOperation.TryBegin(Time.unscaledTime,out int token))return;
+        int view=viewRevision;
+        bool needsConnection=!ModEntry.ConnectionEnabled.Value || !State.connected || State.platform!=platform;
+        ModEntry.ConnectionEnabled.Set(true);SaveSettings();
+        // The pipe handles requests one at a time, but simultaneous connects can
+        // arrive out of order. Finish selection before requesting a window.
+        if(needsConnection) {
+            commandOperation.Reset();
+            epoch++;lastSettings="";diagnostic="";State=new Snapshot {platform=platform};
+            int version=epoch;
+            bool sent=await SendRaw(JsonUtility.ToJson(new Request {clientVersion=2,action="connect",platform=platform,autoReconnect=ModEntry.Reconnect.Value,offsetMs=ModEntry.Offset.Value}),"connect");
+            if(!sent || version!=epoch || platform!=ModEntry.Platform.Value || stop.IsCancellationRequested || view!=viewRevision) {clientOperation.Complete(token,Time.unscaledTime);return;}
+        }
+        await SendRaw(JsonUtility.ToJson(new Request {clientVersion=2,action="openClient",platform=platform}),"openClient",token,view);
     }
     static Color LyricColor(string name) {
         string hex=name=="紫色"?"#D3B8FF":name=="白色"?"#F4F1E8":name=="暖黄"?"#FFE6A0":name=="粉色"?"#FFC2DC":name=="薄荷"?"#ACF4CD":"#6BEFFF";
@@ -199,9 +231,9 @@ public class Terminal : MonoBehaviour {
     public void OpenMusicPicker() {
         CloseWindows();
         var builder=TerminalUI.Window(".picker","云音乐磁带 / 选歌",640,350);
-        builder.AddHeader("在 QQ 音乐中选择歌曲");
+        builder.AddHeader(MusicPlatforms.IsSupported(ModEntry.Platform.Value)?"在 "+MusicPlatforms.Name(ModEntry.Platform.Value)+" 中选择歌曲":"先选择你的音乐平台");
         builder.AddLabel("返回游戏后，歌名与歌词自动同步。");
-        builder.AddSpace(12).AddButton("打开 QQ 音乐选歌",OpenQqMusic);TerminalUI.Fill(builder.Last,52);
+        builder.AddSpace(12).AddButton(MusicPlatforms.OpenLabel(ModEntry.Platform.Value),OpenSelectedClient);TerminalUI.Fill(builder.Last,52);
         builder.AddSpace(12).AddLabel("点击上方按钮才会调出客户端。");
         pickerPanel=TerminalUI.Show(builder,pixelFont);
     }

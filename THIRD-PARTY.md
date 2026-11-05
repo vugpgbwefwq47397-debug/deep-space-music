@@ -23,3 +23,9 @@ DangoMusic (Sorihiko, https://github.com/Sorihiko/DangoMusic) and MusicShow (Shu
 ## Project code
 
 Original code and release text were implemented with user-directed OpenAI Codex assistance. Original project rights are reserved as stated in COPYRIGHT.txt. Third-party licenses remain applicable to their own materials.
+
+## Playback adapters added in 0.2
+
+NetEase elog byte decoding references the MIT-licensed dsh-pet-qqmusic project (https://github.com/344272586-sketch/dsh-pet-qqmusic). Its notice is included under `THIRD-PARTY-LICENSES/dsh-pet-qqmusic.txt`. Only playback events are retained in memory; raw logs are not bundled or uploaded.
+
+KuGou timing uses read-only Windows UI Automation. KuGou lyrics use its public lyric search/download service, matching title, artist and recording duration. Neither client binaries, login data nor fetched lyrics are included.

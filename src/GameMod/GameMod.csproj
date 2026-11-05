@@ -6,5 +6,6 @@
   <Reference Include="$(GameDir)\Probably Stolen_Data\Managed\Unity.TextMeshPro.dll" Private="false" />
   <Reference Include="$(GameDir)\Probably Stolen_Data\Managed\0Harmony.dll" Private="false" />
   <Compile Include="../Shared/Protocol.cs" Link="Protocol.cs" />
+  <Compile Include="../Shared/MusicPlatforms.cs" Link="MusicPlatforms.cs" />
  </ItemGroup>
 </Project>

@@ -57,6 +57,28 @@ try {
  $reset=Request '{"action":"disconnect","platform":"未选择","offsetMs":100,"autoReconnect":true}'
  $saved=Get-Content (Join-Path $auditRoot 'bridge.json') -Raw | ConvertFrom-Json
  Check (!$reset.connected -and $reset.platform -eq '' -and $saved.platform -eq '') 'reset clears the saved platform instead of reconnecting to the old client'
+ foreach($platform in @('netease','kugou')) {
+  $selected=Request (@{action='connect';platform=$platform;offsetMs=100;autoReconnect=$false}|ConvertTo-Json -Compress)
+  Check ($selected.platform -eq $platform -and $selected.offsetMs -eq 100) ('explicit selection supports '+$platform)
+  $wrongDisconnect=Request '{"action":"disconnect","platform":"qq"}'
+  Check (!$wrongDisconnect.ok -and $wrongDisconnect.platform -eq $platform -and $wrongDisconnect.connectionEnabled) ('late disconnect for another platform cannot disconnect '+$platform)
+  $wrong=Request '{"action":"openClient","platform":"qq"}'
+  Check (!$wrong.ok -and $wrong.platform -eq $platform) ('cross-platform picker is rejected without opening QQ from '+$platform)
+  $auditProcess.Kill();$auditProcess.WaitForExit(5000) | Out-Null
+  $auditProcess=Start-AuditBridge;$restored=Wait-Ready
+  Check ($restored.platform -eq $platform -and !$restored.connected -and !$restored.autoReconnect) ('restart preserves '+$platform+' and disabled reconnect')
+ }
+ $selected=Request '{"action":"connect","platform":"qq","autoReconnect":true,"offsetMs":100}'
+ $disconnected=Request '{"action":"disconnect","platform":"qq"}'
+ Check (!$disconnected.connected -and !$disconnected.connectionEnabled -and $disconnected.autoReconnect) 'manual disconnect preserves the platform but disables connection intent'
+ $configured=Request '{"action":"configure","autoReconnect":false,"offsetMs":150}'
+ $configured=Request '{"action":"configure","autoReconnect":true,"offsetMs":150}'
+ Check (!$configured.connected -and !$configured.connectionEnabled) 'changing settings and auto reconnect does not undo manual disconnect'
+ $auditProcess.Kill();$auditProcess.WaitForExit(5000) | Out-Null
+ $auditProcess=Start-AuditBridge;$restored=Wait-Ready
+ Check ($restored.platform -eq 'qq' -and !$restored.connected -and !$restored.connectionEnabled -and $restored.autoReconnect -and $restored.offsetMs -eq 150) 'manual disconnect and lyric correction survive a bridge restart'
+ $selected=Request '{"action":"connect","platform":"qq","autoReconnect":false,"offsetMs":150}'
+ Check ($selected.connectionEnabled) 'explicit Connect re-enables a manually disabled connection'
  $auditProcess.Kill();$auditProcess.WaitForExit(5000) | Out-Null
  Set-Content -LiteralPath (Join-Path $auditRoot 'bridge.json') -Value '{broken' -Encoding UTF8
  $auditProcess=Start-AuditBridge;$recovered=Wait-Ready

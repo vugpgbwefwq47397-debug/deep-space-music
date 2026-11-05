@@ -1,7 +1,7 @@
 using Windows.Media.Control;
 using System.IO;
 namespace DeepSpaceMusic;
-public sealed class Sessions {
+public sealed class Sessions : IDisposable {
     GlobalSystemMediaTransportControlsSessionManager? manager;
     GlobalSystemMediaTransportControlsSession? target;
     readonly ILyricsProvider lyrics;
@@ -9,8 +9,14 @@ public sealed class Sessions {
     int revision;
     string key="";
     List<LyricLine> lines=[];
+    readonly NetEaseTimeline netease=new();
+    readonly KugouTimeline kugou=new();
+    readonly ConnectionPolicy connection=new();
     public string Platform="";
-    public bool AutoReconnect=true, WantConnection;
+    public bool AutoReconnect {get=>connection.AutoReconnect;set=>connection.Configure(value);}
+    public bool WantConnection {get=>connection.Requested;set=>connection.Request(value);}
+    public bool ConnectionEnabled=>connection.Enabled;
+    public void RestoreConnection(bool autoReconnect,bool enabled)=>connection.Restore(autoReconnect,enabled);
     public int Offset;
     public Sessions(ILyricsProvider provider) { lyrics=provider; }
     public static bool Matches(string platform, string id) {
@@ -19,6 +25,7 @@ public sealed class Sessions {
         return platform switch {
             "netease" => name.Equals("cloudmusic",StringComparison.OrdinalIgnoreCase) || id.StartsWith("NetEase.CloudMusic_",StringComparison.OrdinalIgnoreCase),
             "qq" => name.Equals("QQMusic",StringComparison.OrdinalIgnoreCase) || id.StartsWith("Tencent.QQMusic_",StringComparison.OrdinalIgnoreCase),
+            "kugou" => name.Equals("kugou",StringComparison.OrdinalIgnoreCase),
             _=>false
         };
     }
@@ -31,16 +38,16 @@ public sealed class Sessions {
     }
     async Task<Snapshot> ReadCore(CancellationToken token) {
         int version=revision;
-        var s=new Snapshot {platform=Platform, autoReconnect=AutoReconnect,offsetMs=Offset};
+        var s=new Snapshot {platform=Platform, autoReconnect=AutoReconnect,connectionEnabled=ConnectionEnabled,offsetMs=Offset};
         manager ??= await GlobalSystemMediaTransportControlsSessionManager.RequestAsync().AsTask(token);
         token.ThrowIfCancellationRequested();
         if(version!=revision) throw new OperationCanceledException("音乐连接已变化");
         var candidates=manager.GetSessions().Where(x=>Matches(Platform,x.SourceAppUserModelId)).ToArray();
         s.detected=candidates.Length>0;
-        if(target != null && !candidates.Contains(target)) {target=null;key="";lines.Clear(); if(!AutoReconnect) WantConnection=false;}
+        if(target != null && !candidates.Contains(target)) {target=null;key="";lines.Clear();kugou.Reset();connection.Lost();}
         if(target == null && WantConnection) {
             if(candidates.Length==1) target=candidates[0];
-            else s.error=candidates.Length>1?"检测到多个同平台会话，请关闭多余客户端":"未检测到所选平台媒体会话，请启动客户端并播放歌曲";
+            else s.error=candidates.Length>1?"检测到多个同平台会话，请关闭多余客户端":"未检测到媒体会话。"+MusicPlatforms.SetupHint(Platform);
         }
         s.connected=target != null;
         if(target == null) { s.error = s.error.Length>0?s.error:Platform.Length==0?"请首次手动选择音乐平台":"未连接音乐客户端"; return s; }
@@ -63,7 +70,12 @@ public sealed class Sessions {
             s.positionMs=Math.Clamp((long)((t.Position-t.StartTime).TotalMilliseconds+advance),0,s.durationMs);
             s.positionConfidence=s.playback=="playing"?"estimated":"reported";
         }
+        if(s.positionConfidence=="unavailable") {
+            if(Platform=="netease")netease.TryApply(s);
+            if(Platform=="kugou")kugou.TryApply(s);
+        }
         s.trackId=s.sourceApp+"|"+s.title+"|"+s.artist+"|"+s.durationMs;
+        if(lyrics is AutomaticLyrics platformLyrics)platformLyrics.Platform=Platform;
         if(s.trackId!=key || lines.Count==0) {
             key=s.trackId;
             lines=lyrics.Get(s.title,s.artist,s.durationMs).Select(line=>line with {Text=LyricText.ToSimplified(line.Text)}).ToList();
@@ -72,10 +84,11 @@ public sealed class Sessions {
             s.lyricsState="matched"; var i=Lrc.Find(lines,s.positionMs+Offset);
             if(i>=0) {s.current=lines[i].Text;s.currentStartMs=lines[i].StartMs;}
             if(i+1<lines.Count) s.next=lines[i+1].Text;
-        } else s.lyricsState=lines.Count>0?"timeline_unreliable":lyrics is AutomaticLyrics automatic?automatic.Status:"unavailable";
+        } else s.lyricsState=s.positionConfidence=="unavailable" && s.title.Length>0?"timeline_unreliable":lyrics is AutomaticLyrics automatic?automatic.Status:"unavailable";
         return s;
     }
-    public void Disconnect() {revision++;target=null; WantConnection=false; key="";lines.Clear(); }
+    public void Disconnect(bool manual=false) {revision++;target=null;if(manual)connection.Disconnect();else WantConnection=false;key="";lines.Clear();kugou.Reset();}
+    public void Dispose() {kugou.Dispose();readGate.Dispose();}
     public void ReloadLyrics() { key="";lines.Clear();if(lyrics is AutomaticLyrics automatic)automatic.Reset(); }
     public async Task<(bool ok,string result)> Control(string command,CancellationToken token=default) {
         var before=await Read(token); var session=target;

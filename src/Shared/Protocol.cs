@@ -5,6 +5,7 @@ namespace DeepSpaceMusic;
     public int clientVersion;
     public string action = "status", platform = "", command = "";
     public bool autoReconnect = true;
+    public bool connectionEnabled = true;
     public int offsetMs;
     public int page;
     public bool refresh;
@@ -13,6 +14,7 @@ namespace DeepSpaceMusic;
 [Serializable] public class Snapshot {
     public int protocolVersion = 1;
     public bool ok = true, connected, detected, autoReconnect;
+    public bool connectionEnabled = true;
     public string bridge = "ready", platform = "", playback = "unknown", error = "", result = "";
     public string title = "", artist = "", trackId = "", sourceApp = "";
     public long positionMs, durationMs;

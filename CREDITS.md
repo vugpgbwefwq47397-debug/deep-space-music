@@ -10,4 +10,6 @@
 
 技术基础包括 Microsoft .NET / Windows 媒体控制，以及由游戏提供的 Unity、TextMeshPro、Harmony。桥接保留 Microsoft 运行库的许可证与第三方声明。
 
+网易云播放日志的字节解码参考 [dsh-pet-qqmusic](https://github.com/344272586-sketch/dsh-pet-qqmusic)（contributors，MIT）；保留其完整许可于 `THIRD-PARTY-LICENSES/dsh-pet-qqmusic.txt`。酷狗歌词通过酷狗公开歌词服务匹配，安装包不附带歌词内容。
+
 详细说明见 [THIRD-PARTY.md](THIRD-PARTY.md)。第三方资源始终适用其各自许可。

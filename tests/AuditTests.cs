@@ -8,6 +8,21 @@ static class AuditTests {
         public List<LyricLine> Get(string title,string artist,long durationMs) {Reads++;return Lines;}
     }
     public static async Task Run(Action<bool,string> check) {
+        check(MusicPlatforms.Ids.All(MusicPlatforms.IsSupported) && !MusicPlatforms.IsSupported("other"),"all three platforms share the same supported registry");
+        check(Sessions.Matches("netease","cloudmusic.exe") && Sessions.Matches("kugou","kugou") && Sessions.Matches("kugou","KuGou.exe"),"verified NetEase and KuGou media identities are recognized");
+        check(!Sessions.Matches("kugou","my-kugou") && !Sessions.Matches("netease","kugou") && !Sessions.Matches("qq","kugou"),"KuGou matching rejects substring and cross-platform identities");
+        check(MusicPlatforms.Name("netease")=="网易云音乐" && MusicPlatforms.Name("kugou")=="酷狗音乐" && MusicPlatforms.OpenLabel("kugou").Contains("酷狗"),"picker and settings follow the selected platform");
+        check(MusicPlatforms.Index("obsolete")==0 && MusicPlatforms.OpenLabel("未选择")=="选择音乐平台","unknown platform leads to selection instead of silently opening QQ");
+        string install=Path.Combine(Path.GetTempPath(),"music-platform-test-"+Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(install,"20.1.61.28014"));
+        try {
+            string launcher=Path.Combine(install,"KuGou.exe"),child=Path.Combine(install,"20.1.61.28014","KuGou.exe");
+            check(ClientPanel.LaunchPath("kugou",child)==child,"missing KuGou launcher does not invent an executable");
+            File.WriteAllText(launcher,"");
+            check(ClientPanel.LaunchPath("kugou",child)==launcher && ClientPanel.LaunchPath("kugou",launcher)==launcher,"KuGou launcher and versioned children resolve to one installation");
+            bool wrongClient=false;try {ClientPanel.LaunchPath("netease",launcher);}catch(InvalidDataException){wrongClient=true;}
+            check(wrongClient,"a music client cannot be launched under a different platform");
+        } finally {Directory.Delete(install,true);}
         var now=new DateTime(2026,11,5,0,0,0,DateTimeKind.Utc);
         var local=new Local();int fetches=0;
         var pending=new TaskCompletionSource<List<LyricLine>>();

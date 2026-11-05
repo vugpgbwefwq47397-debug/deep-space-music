@@ -10,14 +10,15 @@ public class ModEntry : IMod {
     public static readonly string[] FontSizes={"12 px","24 px","36 px","48 px","60 px","72 px"};
     public static readonly int[] FadeDurations={0,50,100,150,200,300,500,750,1000};
     public static readonly string[] FadeOptions={"立即显示 · 0 ms","50 ms","100 ms","150 ms","200 ms","300 ms","500 ms","750 ms","1000 ms"};
-    public static ConfigEntry<bool> Reconnect, PauseEject, Show, TwoLines, ReducedMotion, Draggable;
+    public static ConfigEntry<bool> Reconnect, ConnectionEnabled, PauseEject, Show, TwoLines, ReducedMotion, Draggable;
     public static ConfigEntry<float> Size, Opacity, Glow, X, Y, Motion;
     public static ConfigEntry<int> Offset, FadeMs;
     GameObject root;
     public void Init(ModManifest manifest) {
         Config=ModHelper.GetConfig(Id);
-        Platform=Config.Define("platform","未选择","音乐平台连接",()=>"平台",choices:new[]{"未选择","netease","qq"});
+        Platform=Config.Define("platform","未选择","音乐平台连接",()=>"平台",choices:MusicPlatforms.Choices);
         Reconnect=Config.Define("autoReconnect",true,"音乐平台连接",()=>"自动重连");
+        ConnectionEnabled=Config.Define("connectionEnabled",true,"音乐平台连接",()=>"允许启动时连接",()=>"由 F10 连接/断开按钮记录。关闭后游戏启动时保持断开。",requiresRestart:true);
         PauseEject=Config.Define("pauseOnEject",true,"磁带机",()=>"取出时暂停外部音乐");
         Show=Config.Define("lyrics",true,"霓虹悬浮歌词",()=>"显示歌词");
         TwoLines=Config.Define("twoLines",true,"霓虹悬浮歌词",()=>"双行显示");
