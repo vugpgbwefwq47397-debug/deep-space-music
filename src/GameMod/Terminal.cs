@@ -22,6 +22,7 @@ public class Terminal : MonoBehaviour {
     Canvas canvas; CustomUIWindow panel; TMP_Text status,feedback;
     readonly PendingOperation clientOperation=new PendingOperation();
     readonly PendingOperation commandOperation=new PendingOperation(.25);
+    readonly PendingOperation claimOperation=new PendingOperation(.75);
     TMP_FontAsset pixelFont;
     CustomUIWindow pickerPanel,toolsPanel;TMP_Text details;
     public float AnimationClock {get;private set;}
@@ -156,6 +157,24 @@ public class Terminal : MonoBehaviour {
         outgoing.rectTransform.anchoredPosition=new Vector2(ModEntry.X.Value,y+ModEntry.Y.Value+14*eased);
     }
     void SaveSettings() {settingsDirty=true;saveAt=Time.unscaledTime+.4f;}
+    void ClaimCassette() {
+        var entry=EmporiumEntry.Instance;
+        bool ready=entry!=null && entry.invElement!=null;
+        int token=0;
+        if(ready && !claimOperation.TryBegin(Time.unscaledTime,out token)) {ShowClaimMessage("请稍后再试，避免重复领取。");return;}
+        try {
+            var result=CassetteClaim.Give(ready,()=>ModHelper.SpawnItem(ModEntry.CassetteId),
+                item=>{GraphUtils.TryAcceptAll(entry.invElement,item);},
+                item=>item.parentInventory!=null || item.unitCount<=0,
+                item=>item.Destroy(),
+                error=>Debug.LogError("[DeepSpaceMusic] 领取磁带失败："+error));
+            ShowClaimMessage(CassetteClaim.Message(result));
+        } finally {if(ready)claimOperation.Complete(token,Time.unscaledTime);}
+    }
+    void ShowClaimMessage(string message) {
+        diagnostic=message;diagnosticUntil=Time.unscaledTime+12;
+        if(details!=null)details.text=message;
+    }
     static string OffsetLabel()=>(ModEntry.Offset.Value>=0?"提前 ":"延后 ")+Math.Abs(ModEntry.Offset.Value)+" ms";
     void CloseWindows() {
         viewRevision++;
@@ -209,7 +228,7 @@ public class Terminal : MonoBehaviour {
         TerminalUI.Dropdown(builder,MenuHotkey.Choices,Math.Max(0,Array.IndexOf(MenuHotkey.Choices,ModEntry.Shortcut.Value)),i=>{ModEntry.Shortcut.Set(MenuHotkey.Choices[i]);SaveSettings();});builder.End();
         builder.AddSeparator(verticalPadding:4).AddHeader("工具");
         builder.AddButton("重新匹配歌词",()=>Send("reload"));TerminalUI.Fill(builder.Last);
-        builder.AddButton("领取云音乐磁带",()=>{if(EmporiumEntry.Instance!=null)ModHelper.MoveItemToInventory(ModHelper.SpawnItem(ModEntry.CassetteId));});
+        builder.AddButton("领取云音乐磁带",ClaimCassette);
         TerminalUI.Fill(builder.Last);
         builder.AddLabel("状态信息", "diagnostics");
         details=builder.Last.text;details.maxVisibleLines=5;details.overflowMode=TextOverflowModes.Ellipsis;builder.Last.SetPreferredSize(-1,160);

@@ -1,3 +1,10 @@
+# v0.2.3 · Cassette claim feedback / 磁带领取热修复
+
+- Fix the cassette-claim button silently doing nothing in the main menu. It now explains that a save must be loaded, independently of the music connection.
+- Confirm successful delivery to the lower player inventory and explain how to insert the cassette into the original player. A full inventory gives an actionable message and removes only the newly spawned, unplaced item.
+- Handle item initialization, placement and cleanup errors with visible feedback and game logs. An exception after placement cannot delete a cassette already stored in an inventory. Briefly debounce repeated claim clicks.
+- Eight added claim-flow regression checks; 159 core checks pass. MusicBridge is unchanged from v0.2.2 and remains compatible, so existing v0.2.2 bridge users only need the updated game mod.
+
 # v0.2.2 · Lyrics coverage and bridge diagnostics / 用户反馈修复
 
 - Add validated NetEase song-ID lyrics and public catalog fallback for other clients. Query independent lyric sources concurrently so a failed source does not hide a valid result.
