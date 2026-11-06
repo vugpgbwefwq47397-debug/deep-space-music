@@ -6,49 +6,68 @@ public sealed class AutomaticLyrics : ILyricsProvider {
     readonly ILyricsProvider local;
     readonly Func<string,string,long,Task<List<LyricLine>>>? fetch;
     readonly Func<DateTime> clock;
-    readonly ConcurrentDictionary<string,Task<List<LyricLine>>> jobs=new();
+    public record Lookup(List<LyricLine> Lines,string Source,string Detail="");
+    readonly ConcurrentDictionary<string,Task<Lookup>> jobs=new();
     readonly ConcurrentDictionary<string,DateTime> attempts=new();
     readonly ConcurrentDictionary<string,(DateTime time,List<LyricLine> lines)> localCache=new();
-    static readonly HttpClient http=CreateClient();
     public string Status {get;private set;}="unavailable";
     public string Platform {get;set;}="";
+    public string NetEaseSongId {get;set;}="";
+    public string Source {get;private set;}="";
+    public string Diagnostic {get;private set;}="";
     public AutomaticLyrics(ILyricsProvider local,Func<string,string,long,Task<List<LyricLine>>>? fetch=null,Func<DateTime>? clock=null) {
         this.local=local;this.fetch=fetch;this.clock=clock??(()=>DateTime.UtcNow);
     }
-    public void Reset(){jobs.Clear();attempts.Clear();localCache.Clear();}
-    static HttpClient CreateClient() {var h=new HttpClient(new HttpClientHandler {UseProxy=false}) {Timeout=TimeSpan.FromSeconds(8)};h.DefaultRequestHeaders.UserAgent.ParseAdd("DeepSpaceMusic/0.1");return h;}
+    public void Reset(){jobs.Clear();attempts.Clear();localCache.Clear();Status="unavailable";Source=Diagnostic="";}
     public List<LyricLine> Get(string title,string artist,long durationMs) {
-        string key=Platform+"|"+title+"|"+artist+"|"+durationMs;
+        string platform=Platform,id=platform=="netease"?NetEaseSongId:"";
+        string key=platform+"|"+id+"|"+title+"|"+artist+"|"+durationMs;
         var now=clock();
+        Source=Diagnostic="";
         if(!localCache.TryGetValue(key,out var cached) || now<cached.time || now-cached.time>=TimeSpan.FromSeconds(2)) {
             if(localCache.Count>=128)localCache.Clear();
             cached=(now,local.Get(title,artist,durationMs));localCache[key]=cached;
         }
-        if(cached.lines.Count>0){Status="local";return cached.lines;}
+        if(cached.lines.Count>0){Status="local";Source="本地 LRC";return cached.lines;}
         if(durationMs<=0 || title.Length==0 || artist.Length==0){Status="waiting_for_metadata";return [];}
-        if(jobs.TryGetValue(key,out var previous) && previous.IsCompleted && (!previous.IsCompletedSuccessfully || previous.Result.Count==0) && attempts.TryGetValue(key,out var time) && (now<time || now-time>=TimeSpan.FromSeconds(20)))jobs.TryRemove(key,out _);
+        if(jobs.TryGetValue(key,out var previous) && previous.IsCompleted && (!previous.IsCompletedSuccessfully || previous.Result.Lines.Count==0) && attempts.TryGetValue(key,out var time) && (now<time || now-time>=TimeSpan.FromSeconds(20)))jobs.TryRemove(key,out _);
         if(jobs.Count>=128){jobs.Clear();attempts.Clear();}
-        var task=jobs.GetOrAdd(key,_=>{attempts[key]=now;return fetch!=null?fetch(title,artist,durationMs):FetchForPlatform(Platform,title,artist,durationMs);});
-        Status=!task.IsCompleted?"loading_lrclib":!task.IsCompletedSuccessfully?"lyrics_lookup_failed":task.Result.Count>0?(Platform=="kugou"?"online":"lrclib"):"no_matching_lyrics";
+        var task=jobs.GetOrAdd(key,_=>{attempts[key]=now;return fetch!=null?Injected(title,artist,durationMs):FetchForPlatform(platform,id,title,artist,durationMs);});
+        Status=!task.IsCompleted?"loading_lrclib":!task.IsCompletedSuccessfully?"lyrics_lookup_failed":task.Result.Lines.Count>0?"online":task.Result.Detail.Length>0?"lyrics_lookup_failed":"no_matching_lyrics";
+        if(task.IsCompletedSuccessfully) {Source=task.Result.Source;Diagnostic=task.Result.Detail;}
+        else if(task.IsFaulted)Diagnostic="歌词服务请求失败；检查网络或稍后重试";
         if(task.IsFaulted)_=task.Exception; // Observe failed background jobs; the next retry can recover.
-        return task.IsCompletedSuccessfully?task.Result:[];
+        return task.IsCompletedSuccessfully?task.Result.Lines:[];
     }
+    async Task<Lookup> Injected(string title,string artist,long ms)=>new(await fetch!(title,artist,ms),"online");
     public static bool Matches(string title,string artist,long durationMs,string candidateTitle,string candidateArtist,double seconds)=>
-        string.Equals(title.Trim(),candidateTitle.Trim(),StringComparison.OrdinalIgnoreCase) && string.Equals(artist.Trim(),candidateArtist.Trim(),StringComparison.OrdinalIgnoreCase) && durationMs>0 && Math.Abs(durationMs-seconds*1000)<=2000;
-    static async Task<List<LyricLine>> FetchForPlatform(string platform,string title,string artist,long ms) {
-        if(platform=="kugou") {
-            try {var native=await KugouLyrics.Fetch(title,artist,ms);if(native.Count>0)return native;}
-            catch(Exception e) when(e is HttpRequestException or TaskCanceledException or JsonException) { }
+        MetadataMatch.Recording(title,artist,durationMs,candidateTitle,candidateArtist,seconds);
+    static async Task<Lookup> Safe(string source,Func<Task<List<LyricLine>>> request) {
+        try {return new(await request(),source);}
+        catch(Exception e) when(e is HttpRequestException or OperationCanceledException or JsonException or FormatException) {
+            return new([],source,source+(e is OperationCanceledException?"：请求超时":"：网络或响应异常"));
         }
-        return await Fetch(title,artist,ms);
+    }
+    static Task<Lookup> FetchForPlatform(string platform,string id,string title,string artist,long ms) {
+        var requests=new List<Task<Lookup>>();
+        if(platform=="netease" && id.Length>0)requests.Add(Safe("网易云",()=>NetEaseLyrics.Fetch(id)));
+        else requests.Add(Safe("网易云曲库",()=>NetEaseLyrics.Search(title,artist,ms)));
+        requests.Add(Safe("酷狗",()=>KugouLyrics.Fetch(title,artist,ms)));
+        requests.Add(Safe("LRCLIB",()=>Fetch(title,artist,ms)));
+        return FirstMatch(requests);
+    }
+    public static async Task<Lookup> FirstMatch(IEnumerable<Task<Lookup>> requests) {
+        var pending=requests.ToList();var errors=new List<string>();
+        while(pending.Count>0) {
+            var completed=await Task.WhenAny(pending);pending.Remove(completed);
+            var result=await completed;
+            if(result.Lines.Count>0)return result;
+            if(result.Detail.Length>0)errors.Add(result.Detail);
+        }
+        return new([],"",string.Join("；",errors));
     }
     static async Task<List<LyricLine>> Fetch(string title,string artist,long ms) {
-            using var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(8));
-            using var response=await http.GetAsync("https://lrclib.net/api/search?track_name="+Uri.EscapeDataString(title)+"&artist_name="+Uri.EscapeDataString(artist),HttpCompletionOption.ResponseHeadersRead,timeout.Token);
-            response.EnsureSuccessStatusCode();await using var stream=await response.Content.ReadAsStreamAsync(timeout.Token);
-            using var limited=new MemoryStream();var buffer=new byte[8192];int n;
-            while((n=await stream.ReadAsync(buffer,timeout.Token))>0) {if(limited.Length+n>2_000_000)return [];limited.Write(buffer,0,n);}
-            using var json=JsonDocument.Parse(limited.ToArray());
+            using var json=await LyricsHttp.Read("https://lrclib.net/api/search?track_name="+Uri.EscapeDataString(title)+"&artist_name="+Uri.EscapeDataString(artist));
             return ParseResponse(title,artist,ms,json.RootElement);
     }
     public static List<LyricLine> ParseResponse(string title,string artist,long ms,JsonElement root) {

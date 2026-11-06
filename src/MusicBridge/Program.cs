@@ -3,6 +3,16 @@ using System.IO;
 using System.Text;
 using System.Text.Json;
 using DeepSpaceMusic;
+Console.OutputEncoding=new UTF8Encoding(false);
+if(args.Contains("--diagnose")) {Environment.ExitCode=await BridgeDiagnostics.Run();return;}
+try {await Run(args);}
+catch(Exception e) {
+    Console.Error.WriteLine("MusicBridge 启动失败（"+e.GetType().Name+"）："+e.Message);
+    Console.Error.WriteLine("请完整解压 Windows x64 包，不要只复制 EXE；保持 MusicBridge 整个文件夹完整且在游戏 Mods 之外。游戏和桥接使用同一 Windows 账号及相同权限。");
+    Environment.ExitCode=1;
+    if(!Console.IsInputRedirected) {Console.Error.WriteLine("按回车关闭窗口。");Console.ReadLine();}
+}
+static async Task Run(string[] args) {
 var json=new JsonSerializerOptions {IncludeFields=true};
 string root=Environment.GetEnvironmentVariable("DEEP_SPACE_MUSIC_DATA") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"DeepSpaceMusic");
 Directory.CreateDirectory(root);
@@ -21,12 +31,15 @@ string pipeName=Environment.GetEnvironmentVariable("DEEP_SPACE_MUSIC_PIPE") ?? "
 if(pipeName.Length>64 || pipeName.Length==0 || pipeName.Any(c=>!char.IsAsciiLetterOrDigit(c) && c is not ('.' or '-' or '_')))throw new InvalidDataException("无效的本地管道名称");
 using var singleton=new Mutex(true,pipeName=="DeepSpaceMusic.v1"?"Local\\DeepSpaceMusicBridge":"Local\\"+pipeName,out bool created);
 if(!created) {Console.Error.WriteLine("桥接服务已在运行");return;}
-Console.WriteLine("Deep Space MusicBridge 0.2 | 本机当前用户命名管道 | Ctrl+C 退出\n本地歌词: "+Path.Combine(root,"Lyrics"));
+Console.WriteLine("沉浸歌词 MusicBridge 0.2.2 | 本机当前用户命名管道 | Ctrl+C 退出\n本地歌词: "+Path.Combine(root,"Lyrics"));
+Console.WriteLine("请保持本窗口开启；游戏中 F9 / F10 → 连接与工具选择平台。SMTC 与本地桥接是两层连接。");
 using var stop=new CancellationTokenSource();
 Console.CancelKeyPress+=(s,e)=>{e.Cancel=true;stop.Cancel();};
+bool announced=false;
 while(!stop.IsCancellationRequested) {
     // Windows validates the connecting user's SID; no TCP listener, browser origin or bearer token.
     using var pipe=new NamedPipeServerStream(pipeName,PipeDirection.InOut,1,PipeTransmissionMode.Byte,PipeOptions.Asynchronous|PipeOptions.CurrentUserOnly);
+    if(!announced) {Console.WriteLine("本地管道已就绪："+pipeName+"。等待游戏连接。");announced=true;}
     try {
         await pipe.WaitForConnectionAsync(stop.Token);
         using var timeout=CancellationTokenSource.CreateLinkedTokenSource(stop.Token);timeout.CancelAfter(4000);
@@ -82,4 +95,5 @@ while(!stop.IsCancellationRequested) {
         }
         await writer.WriteLineAsync(JsonSerializer.Serialize(state,json).AsMemory(),timeout.Token);
     } catch(OperationCanceledException) {} catch(Exception e) {Console.Error.WriteLine(DateTime.Now.ToString("s")+" "+e.Message);}
+}
 }

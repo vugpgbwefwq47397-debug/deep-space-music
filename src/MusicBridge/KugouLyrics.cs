@@ -3,7 +3,6 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 namespace DeepSpaceMusic;
 public static class KugouLyrics {
-    static readonly HttpClient http=new(new HttpClientHandler {UseProxy=false}) {Timeout=TimeSpan.FromSeconds(8)};
     public record Candidate(string Id,string AccessKey,long Difference);
     public static List<Candidate> Candidates(JsonElement root,string title,string artist,long duration) {
         var result=new List<Candidate>();
@@ -19,11 +18,7 @@ public static class KugouLyrics {
         return result.OrderBy(x=>x.Difference).ToList();
     }
     static async Task<JsonDocument> Read(string uri,CancellationToken token) {
-        using var response=await http.GetAsync(uri,HttpCompletionOption.ResponseHeadersRead,token);response.EnsureSuccessStatusCode();
-        await using var stream=await response.Content.ReadAsStreamAsync(token);
-        using var data=new MemoryStream();byte[] buffer=new byte[8192];int count;
-        while((count=await stream.ReadAsync(buffer,token))>0) {if(data.Length+count>2_000_000)throw new JsonException("歌词响应过大");data.Write(buffer,0,count);}
-        return JsonDocument.Parse(data.ToArray());
+        return await LyricsHttp.Read(uri,token);
     }
     public static async Task<List<LyricLine>> Fetch(string title,string artist,long duration) {
         using var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(8));
@@ -31,9 +26,14 @@ public static class KugouLyrics {
         foreach(var candidate in Candidates(search.RootElement,title,artist,duration).Take(3)) {
             // The key identifies a public lyric document; no account token or cookie.
             using var download=await Read("https://lyrics.kugou.com/download?ver=1&client=pc&id="+candidate.Id+"&accesskey="+candidate.AccessKey+"&fmt=lrc&charset=utf8",timeout.Token);
-            if(!download.RootElement.TryGetProperty("content",out var content) || content.ValueKind!=JsonValueKind.String)continue;
-            try {var lines=Lrc.Parse(Encoding.UTF8.GetString(Convert.FromBase64String(content.GetString()??"")));if(lines.Count>0)return lines;}catch(FormatException) { }
+            var lines=ParseDownload(download.RootElement);if(lines.Count>0)return lines;
         }
         return [];
+    }
+    public static List<LyricLine> ParseDownload(JsonElement root) {
+        if(root.ValueKind!=JsonValueKind.Object)throw new JsonException("酷狗歌词响应格式错误");
+        if(!root.TryGetProperty("content",out var content) || content.ValueKind!=JsonValueKind.String)return [];
+        try {return Lrc.Parse(Encoding.UTF8.GetString(Convert.FromBase64String(content.GetString()??"")));}
+        catch(FormatException) {throw new JsonException("酷狗歌词编码错误");}
     }
 }

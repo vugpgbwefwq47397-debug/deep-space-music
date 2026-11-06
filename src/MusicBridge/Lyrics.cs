@@ -20,6 +20,9 @@ public static class Lrc {
                 result.Add(new(ms + offset, content));
             }
         }
+        // Blank timestamps can clear a real lyric, but an entirely blank file
+        // must not win the lookup race and hide another provider's lyrics.
+        if(!result.Any(line=>!string.IsNullOrWhiteSpace(line.Text)))return [];
         return result.OrderBy(x => x.StartMs).GroupBy(x => x.StartMs).Select(g => new LyricLine(g.Key, string.Join(" / ", g.Select(l=>l.Text).Distinct()))).ToList();
     }
     public static int Find(IReadOnlyList<LyricLine> lines, long time) {
@@ -42,7 +45,10 @@ public sealed class LocalLyricsProvider(string root) : ILyricsProvider {
                 if(meta == null || meta.DurationMs<0 || !string.Equals(meta.Title?.Trim(),title.Trim(),StringComparison.OrdinalIgnoreCase) || !string.Equals(meta.Artist?.Trim(),artist.Trim(),StringComparison.OrdinalIgnoreCase)) continue;
                 if(meta.DurationMs > 0 && (durationMs <= 0 || Math.Abs(meta.DurationMs-durationMs)>2000)) continue;
                 var lrc=Path.ChangeExtension(file,".lrc");
-                if(File.Exists(lrc) && new FileInfo(lrc).Length<=2_000_000) return Lrc.Parse(File.ReadAllText(lrc));
+                if(File.Exists(lrc) && new FileInfo(lrc).Length<=2_000_000) {
+                    var lines=Lrc.Parse(File.ReadAllText(lrc));
+                    if(lines.Count>0)return lines;
+                }
             } catch(Exception e) when(e is System.Text.Json.JsonException or IOException or ArgumentException or UnauthorizedAccessException) { Console.Error.WriteLine("LRC: " + e.Message); }
         }
         return [];

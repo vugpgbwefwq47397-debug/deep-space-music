@@ -4,7 +4,7 @@ namespace DeepSpaceMusic;
 public class ModEntry : IMod {
     public const string Id="deep_space_music", CassetteId=Id+".cassette", Track=Id+".external";
     public static ModConfig Config;
-    public static ConfigEntry<string> Platform, Theme, Position, AnimationMode;
+    public static ConfigEntry<string> Platform, Theme, Position, AnimationMode, Shortcut;
     public static readonly string[] Animations=LyricMotion.Modes;
     public static readonly string[] Colors={"青蓝","紫色","白色","暖黄","粉色","薄荷"};
     public static readonly string[] FontSizes={"12 px","24 px","36 px","48 px","60 px","72 px"};
@@ -17,6 +17,8 @@ public class ModEntry : IMod {
     public void Init(ModManifest manifest) {
         Config=ModHelper.GetConfig(Id);
         Platform=Config.Define("platform","未选择","音乐平台连接",()=>"平台",choices:MusicPlatforms.Choices);
+        Shortcut=Config.Define("menuHotkey","F9","操作",()=>"打开设置快捷键（F10 / Ctrl+F9 保留）",choices:MenuHotkey.Choices);
+        if(Shortcut.Value!=MenuHotkey.Normalize(Shortcut.Value))Shortcut.Set("F9");
         Reconnect=Config.Define("autoReconnect",true,"音乐平台连接",()=>"自动重连");
         ConnectionEnabled=Config.Define("connectionEnabled",true,"音乐平台连接",()=>"允许启动时连接",()=>"由 F10 连接/断开按钮记录。关闭后游戏启动时保持断开。",requiresRestart:true);
         PauseEject=Config.Define("pauseOnEject",true,"磁带机",()=>"取出时暂停外部音乐");
@@ -36,7 +38,7 @@ public class ModEntry : IMod {
         X=Config.Define("x",0f,"霓虹悬浮歌词",()=>"水平偏移",-900f,900f);
         Y=Config.Define("y",0f,"霓虹悬浮歌词",()=>"垂直偏移",-900f,900f);
         Offset=Config.Define("offset",100,"霓虹悬浮歌词",()=>"歌词时间偏移 ms",-10000,10000);
-        new ModLog(manifest).Log("初始化完成；桥接需独立启动。F10 打开连接状态。目标 Steam build 26337366。");
+        new ModLog(manifest).Log("初始化完成；桥接需独立启动。F9 / F10 打开连接状态，快捷键可修改。目标 Steam build 26337366。");
     }
     public void OnEnable() {
         ModHook.OnModItemDirectoryInit+=Register;

@@ -20,10 +20,11 @@ public sealed class NetEaseTimeline {
     static readonly Regex load=new("\\\"songId\\\"\\s*:\\s*\\\"?(\\d+)",RegexOptions.Compiled);
     static readonly Regex seek=new("\\\"setPlayingPosition\\\"\\s*,\\s*(-?\\d+(?:\\.\\d+)?)",RegexOptions.Compiled);
     static readonly Regex status=new("\\\"native[^\\\"]*state\\\"\\s*,\\s*(\\d+)",RegexOptions.Compiled);
-    static readonly HttpClient http=new(new HttpClientHandler {UseProxy=false}) {Timeout=TimeSpan.FromSeconds(8)};
     Task<Track?>? metadata;
     string metadataId="";
     long retryAt;
+    public string VerifiedSongId {get;private set;}="";
+    public string Diagnostic {get;private set;}="";
     public record Track(string Id,string Title,string Artist,long Duration);
     public NetEaseTimeline(string? file=null) {path=file??Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"NetEase","CloudMusic","cloudmusic.elog");}
     public static byte DecodeByte(byte value) {
@@ -38,6 +39,9 @@ public sealed class NetEaseTimeline {
         if(tick<uint.MaxValue && nowTick>uint.MaxValue)tick+=(nowTick/(1L<<32))*(1L<<32);
         if(tick>nowTick+2000)tick-=1L<<32;
         if(nowTick-tick>12*60*60*1000L || tick>nowTick+2000)return;
+        // Log writes from different client threads can arrive out of order.
+        // A late load event must not erase a newer playback/seek anchor.
+        if(songId.Length>0 && tick<anchorTick)return;
         if(line.Contains("\"native",StringComparison.Ordinal) && line.Contains("load",StringComparison.Ordinal)) {
             var id=load.Match(line);
             if(id.Success && id.Groups[1].Length<=20) {songId=id.Groups[1].Value;pid=eventPid;position=0;anchorTick=tick;playing=false;anchored=false;}
@@ -90,20 +94,28 @@ public sealed class NetEaseTimeline {
     }
     public (string Id,long Position,bool Playing,bool Anchored) StateAt(long tick)=>(songId,Math.Max(0,position+(playing?Math.Max(0,tick-anchorTick):0)),playing,anchored);
     public bool TryApply(Snapshot snapshot) {
-        var ev=ReadEvents();if(!ev.Anchored || ev.Id.Length==0 || ev.Playing!=(snapshot.playback=="playing"))return false;
+        VerifiedSongId="";Diagnostic="";
+        var ev=ReadEvents();
+        if(ev.Id.Length==0) {Diagnostic="未读到网易云当前歌曲事件，请在客户端播放或拖动进度一次";return false;}
         if(metadata?.IsFaulted==true)_=metadata.Exception;
         if(metadataId!=ev.Id || metadata==null || (metadata.IsCompleted && (!metadata.IsCompletedSuccessfully || metadata.Result==null) && Environment.TickCount64>=retryAt)) {
             metadataId=ev.Id;metadata=LoadTrack(ev.Id);retryAt=Environment.TickCount64+20000;
         }
         var track=metadata.IsCompletedSuccessfully?metadata.Result:null;
-        if(track==null || track.Title!=snapshot.title || track.Artist!=snapshot.artist || track.Duration<=0 || ev.Position>track.Duration+1500)return false;
+        if(track==null) {Diagnostic=metadata.IsCompleted?"网易云歌曲信息获取失败，将自动重试":"正在校验网易云当前歌曲";return false;}
+        if(!MetadataMatch.Title(track.Title,snapshot.title) || !MetadataMatch.Artists(track.Artist,snapshot.artist) || track.Duration<=0 ||
+            (snapshot.durationMs>0 && Math.Abs(snapshot.durationMs-track.Duration)>2000)) {Diagnostic="网易云事件与系统媒体歌曲不一致，请切换或重新播放当前歌曲";return false;}
+        VerifiedSongId=track.Id;
+        if(snapshot.durationMs<=0)snapshot.durationMs=track.Duration;
+        if(snapshot.positionConfidence!="unavailable")return true;
+        if(!ev.Anchored || ev.Playing!=(snapshot.playback=="playing") || ev.Position>track.Duration+1500) {Diagnostic="等待网易云播放进度，请在客户端播放或拖动进度一次";return false;}
         snapshot.positionMs=Math.Clamp(ev.Position,0,track.Duration);snapshot.durationMs=track.Duration;snapshot.positionConfidence="netease_log";return true;
     }
     static async Task<Track?> LoadTrack(string id) {
         try {
             // Public song metadata only, with no cookies, login or signed audio URL.
             string uri="https://music.163.com/api/song/detail/?id="+id+"&ids=%5B"+id+"%5D";
-            using var json=JsonDocument.Parse(await http.GetStringAsync(uri));return ParseTrack(json.RootElement,id);
+            using var json=await LyricsHttp.Read(uri);return ParseTrack(json.RootElement,id);
         } catch(Exception e) when(e is HttpRequestException or TaskCanceledException or JsonException or KeyNotFoundException or InvalidOperationException or IndexOutOfRangeException) {return null;}
     }
     public static Track? ParseTrack(JsonElement root,string id) {

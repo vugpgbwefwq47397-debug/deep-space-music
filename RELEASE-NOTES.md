@@ -1,3 +1,18 @@
+# v0.2.2 · Lyrics coverage and bridge diagnostics / 用户反馈修复
+
+- Add validated NetEase song-ID lyrics and public catalog fallback for other clients. Query independent lyric sources concurrently so a failed source does not hide a valid result.
+- Normalize Unicode width/spacing and collaboration separators while retaining artist membership, recording duration and live/remix/version checks. Never replace lyrics with an arbitrary same-name song.
+- Show lyric source/line count, network failures, missing metadata and missing reliable timing separately. Refresh local lyric overrides without restarting the bridge.
+- Default settings shortcut is now F9, configurable immediately in Tools or the official mod configuration page. Legacy F10 and Ctrl+F9 remain available. Ignore shortcuts while editing a text field.
+- Explain the two connection layers: Workshop + SMTC does not launch the external bridge. Add Start-MusicBridge.cmd, read-only Diagnose-MusicBridge.cmd, explicit ready/startup failure messages, and Windows account/privilege guidance.
+- Add a bridge-only ZIP for Workshop users; do not place its runtime in Mods. Update both the Workshop mod and external bridge for all fixes.
+- Requests use validated TLS, bounded responses/timeouts, direct access with fallback to the existing system proxy. No proxy/security setting is changed. No credentials/cookies, songs, queues or raw logs are uploaded.
+- Automated validation: 151 core checks, 29 isolated IPC checks, official scan without refusal/findings. Clean old-release pipe roundtrip with the original downloaded Workshop DLL passed after startup. Real NetEase IDs returned 62/65 timed lines; cross-platform lookup also returned timed lyrics. Unknown user song/client examples cannot be declared reproduced or universally fixed.
+- A reported recording was reproduced: C!naH's "Sweet Dream (비비노스 - 에이스테 Original Soundtrack Extended ver.)" returned no match in the old released bridge and 49 timed lines in the candidate. The reported "ANEMONE" recording remains unidentified; one candidate was checked without assuming it is the user's version.
+- Fixed a bridge-restart recovery case where the bridge restored a different platform from the game's selection. Automatic recovery now reconciles that selection while respecting manual disconnect and disabled auto-reconnect.
+- Follow-up fixes: reconcile a same-platform bridge that restores a disabled connection; ignore out-of-order NetEase load events; reject entirely blank timed lyrics; continue past an empty local LRC to another valid match. Nine regression checks added; the same-platform recovery also passed in the running game.
+- Another reported recording, "アンダーグラウンド" by 柿崎ユウタ, returned no timed match in the old release; the candidate retrieved 46 timed lines from NetEase and 44 through the KuGou fallback. This verifies lookup, not playback of that song in a live NetEase client.
+
 # v0.2.1 · Probably Stolen: Immersive Lyrics / 深空当铺沉浸歌词
 
 - New display name: Probably Stolen: Immersive Lyrics / 深空当铺沉浸歌词. Existing mod IDs, save bindings and configuration paths remain compatible.

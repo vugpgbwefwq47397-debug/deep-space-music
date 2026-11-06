@@ -13,7 +13,7 @@ public static class IpcClient {
             return await queue.Run(async ()=> {
             using var pipe=new NamedPipeClientStream(".","DeepSpaceMusic.v1",PipeDirection.InOut,PipeOptions.Asynchronous);
             using var registration=timeout.Token.Register(()=>pipe.Dispose());
-            await pipe.ConnectAsync(700,timeout.Token);
+            await pipe.ConnectAsync(1500,timeout.Token);
             using var writer=new StreamWriter(pipe,new UTF8Encoding(false),1024,true){AutoFlush=true};
             using var reader=new StreamReader(pipe,new UTF8Encoding(false),false,1024,true);
             if(isCurrent!=null && !isCurrent())throw new OperationCanceledException("操作已取消");

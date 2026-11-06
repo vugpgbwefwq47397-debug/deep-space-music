@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 namespace DeepSpaceMusic;
 public class Terminal : MonoBehaviour {
     public static Terminal Instance;
@@ -69,13 +70,13 @@ public class Terminal : MonoBehaviour {
             responses.Enqueue(new Reply {epoch=version,action=action,token=token,view=view,payload=reply});
             return PlaybackPresentation.Normalize(JsonUtility.FromJson<Snapshot>(reply)).ok;
         }
-        catch(Exception e) {if(!stop.IsCancellationRequested) responses.Enqueue(new Reply {epoch=version,action=action,token=token,view=view,cancelled=e is OperationCanceledException,payload="ERROR:"+e.Message});return false;}
+        catch(Exception e) {if(!stop.IsCancellationRequested) responses.Enqueue(new Reply {epoch=version,action=action,token=token,view=view,cancelled=e is OperationCanceledException,payload="ERROR:"+BridgeFailures.Describe(e)});return false;}
     }
     async void Poll(string settings) {
         polling=true;
         try {
             int connectionVersion=epoch;
-            if(State.bridge=="offline" && ModEntry.Reconnect.Value && ModEntry.ConnectionEnabled.Value && MusicPlatforms.IsSupported(ModEntry.Platform.Value)) {
+            if(PlaybackPresentation.NeedsReconnect(State,ModEntry.Platform.Value,ModEntry.ConnectionEnabled.Value,ModEntry.Reconnect.Value)) {
                 // Re-establish only an enabled connection after the bridge returns.
                 // Never undo an explicit Disconnect, and never open a client here.
                 var reconnect=new Request {clientVersion=2,action="connect",platform=ModEntry.Platform.Value,autoReconnect=true,offsetMs=ModEntry.Offset.Value};
@@ -90,7 +91,7 @@ public class Terminal : MonoBehaviour {
         finally {polling=false;if(State.bridge=="offline")pollAt=Time.unscaledTime+1;}
     }
     void Update() {
-        if(Input.GetKeyDown(KeyCode.F10)) {if((panel!=null && panel.IsAlive) || (toolsPanel!=null && toolsPanel.IsAlive) || (pickerPanel!=null && pickerPanel.IsAlive))CloseWindows();else Open();}
+        if(ShortcutPressed()) {if((panel!=null && panel.IsAlive) || (toolsPanel!=null && toolsPanel.IsAlive) || (pickerPanel!=null && pickerPanel.IsAlive))CloseWindows();else Open();}
         if(settingsDirty && Time.unscaledTime>=saveAt) {ModEntry.Config.Save();settingsDirty=false;}
         if(!polling && Time.unscaledTime>=pollAt) {
             pollAt=Time.unscaledTime+0.1f;
@@ -101,7 +102,7 @@ public class Terminal : MonoBehaviour {
             if(response.action=="command")commandOperation.Complete(response.token,Time.unscaledTime);
             if(response.cancelled || response.epoch!=epoch)continue;
             try {
-                State=response.payload.StartsWith("ERROR:")?new Snapshot {ok=false,bridge="offline",error="本地桥接服务未启动或连接失败："+response.payload.Substring(6)}:PlaybackPresentation.Normalize(JsonUtility.FromJson<Snapshot>(response.payload));
+                State=response.payload.StartsWith("ERROR:")?new Snapshot {ok=false,bridge="offline",error=response.payload.Substring(6)}:PlaybackPresentation.Normalize(JsonUtility.FromJson<Snapshot>(response.payload));
             } catch(Exception e) {State=new Snapshot {ok=false,bridge="offline",error="桥接状态无效："+e.Message};}
             if(State.error.Length>0 && State.error!=lastError)Debug.Log("[DeepSpaceMusic] "+State.error);
             lastError=State.error;
@@ -113,9 +114,18 @@ public class Terminal : MonoBehaviour {
         if(EmporiumEntry.Instance==null && Bound) Deck.Release(ModEntry.PauseEject.Value);
         if(status!=null)status.text=PlaybackPresentation.Status(State);
         if(feedback!=null)feedback.text=Time.unscaledTime<diagnosticUntil && diagnostic.Length>0?diagnostic:"切换即生效 / 自动保存 / 拖动字幕可定位";
-        if(details!=null)details.text=State.error.Length>0?State.error:Time.unscaledTime<diagnosticUntil?diagnostic:State.connected?"音乐客户端已连接。\n"+PlaybackPresentation.LyricsStatus(State):"尚未连接，请选择平台并连接。";
+        if(details!=null)details.text=Time.unscaledTime<diagnosticUntil && diagnostic.Length>0?diagnostic:PlaybackPresentation.Details(State);
         if(MotionActive && !ModEntry.ReducedMotion.Value) AnimationClock+=Time.unscaledDeltaTime;
         Render();
+    }
+    bool ShortcutPressed() {
+        var selected=EventSystem.current?.currentSelectedGameObject;
+        if(selected!=null && (selected.GetComponent<TMP_InputField>()?.isFocused==true || selected.GetComponent<InputField>()?.isFocused==true))return false;
+        bool ctrl=Input.GetKey(KeyCode.LeftControl)||Input.GetKey(KeyCode.RightControl);
+        bool alt=Input.GetKey(KeyCode.LeftAlt)||Input.GetKey(KeyCode.RightAlt);
+        bool shift=Input.GetKey(KeyCode.LeftShift)||Input.GetKey(KeyCode.RightShift);
+        bool Pressed(string key)=>Enum.TryParse<KeyCode>(key,out var code) && Input.GetKeyDown(code) && MenuHotkey.Matches(ModEntry.Shortcut.Value,key,ctrl,alt,shift);
+        return Pressed(MenuHotkey.Key(ModEntry.Shortcut.Value)) || Pressed("F10") || Pressed("F9");
     }
     void Render() {
         if(canvas==null) return;
@@ -189,22 +199,24 @@ public class Terminal : MonoBehaviour {
     }
     void OpenTools() {
         CloseWindows();
-        var builder=TerminalUI.Window(".tools","音乐终端 / 连接与工具",720,630);
+        var builder=TerminalUI.Window(".tools","音乐终端 / 连接与工具",760,800);
         builder.AddHeader("音乐来源");
         TerminalUI.Dropdown(builder,MusicPlatforms.Labels,MusicPlatforms.Index(ModEntry.Platform.Value),i=>{if(ModEntry.Platform.Value==MusicPlatforms.Choices[i])return;ModEntry.Platform.Set(MusicPlatforms.Choices[i]);SaveSettings();Send(i==0?"disconnect":"connect");});
         builder.BeginRow(12).AddButton("连接 / 重新检测",()=>Send("connect"));TerminalUI.Fill(builder.Last);
         builder.AddButton("断开",()=>Send("disconnect"));TerminalUI.Fill(builder.Last);builder.End();
         builder.AddToggle("自动重连",ModEntry.Reconnect.Value,v=>{ModEntry.Reconnect.Set(v);SaveSettings();});
+        builder.BeginRow(12);TerminalUI.Label(builder,"设置快捷键");
+        TerminalUI.Dropdown(builder,MenuHotkey.Choices,Math.Max(0,Array.IndexOf(MenuHotkey.Choices,ModEntry.Shortcut.Value)),i=>{ModEntry.Shortcut.Set(MenuHotkey.Choices[i]);SaveSettings();});builder.End();
         builder.AddSeparator(verticalPadding:4).AddHeader("工具");
         builder.AddButton("重新匹配歌词",()=>Send("reload"));TerminalUI.Fill(builder.Last);
         builder.AddButton("领取云音乐磁带",()=>{if(EmporiumEntry.Instance!=null)ModHelper.MoveItemToInventory(ModHelper.SpawnItem(ModEntry.CassetteId));});
         TerminalUI.Fill(builder.Last);
         builder.AddLabel("状态信息", "diagnostics");
-        details=builder.Last.text;details.maxVisibleLines=3;details.overflowMode=TextOverflowModes.Ellipsis;builder.Last.SetPreferredSize(-1,100);
+        details=builder.Last.text;details.maxVisibleLines=5;details.overflowMode=TextOverflowModes.Ellipsis;builder.Last.SetPreferredSize(-1,160);
         builder.BeginRow(12).AddButton("返回字幕设置",Open);TerminalUI.Fill(builder.Last);
         builder.AddButton("恢复默认设置",()=>{ModEntry.Config.ResetToDefaults();SaveSettings();Send("disconnect");Open();});TerminalUI.Fill(builder.Last);builder.End();
         toolsPanel=TerminalUI.Show(builder,pixelFont);
-        details.text=State.error.Length>0?State.error:diagnostic.Length>0?diagnostic:State.connected?"音乐客户端已连接。":"尚未连接，请选择平台并连接。";
+        details.text=PlaybackPresentation.Details(State);
     }
     async void OpenSelectedClient() {
         string platform=ModEntry.Platform.Value;

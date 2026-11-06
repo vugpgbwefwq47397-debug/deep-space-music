@@ -9,6 +9,7 @@ public sealed class Sessions : IDisposable {
     int revision;
     string key="";
     List<LyricLine> lines=[];
+    List<LyricLine>? rawLines;
     readonly NetEaseTimeline netease=new();
     readonly KugouTimeline kugou=new();
     readonly ConnectionPolicy connection=new();
@@ -38,7 +39,7 @@ public sealed class Sessions : IDisposable {
     }
     async Task<Snapshot> ReadCore(CancellationToken token) {
         int version=revision;
-        var s=new Snapshot {platform=Platform, autoReconnect=AutoReconnect,connectionEnabled=ConnectionEnabled,offsetMs=Offset};
+        var s=new Snapshot {platform=Platform, autoReconnect=AutoReconnect,connectionEnabled=ConnectionEnabled,offsetMs=Offset,bridgeVersion="0.2.2"};
         manager ??= await GlobalSystemMediaTransportControlsSessionManager.RequestAsync().AsTask(token);
         token.ThrowIfCancellationRequested();
         if(version!=revision) throw new OperationCanceledException("音乐连接已变化");
@@ -70,21 +71,27 @@ public sealed class Sessions : IDisposable {
             s.positionMs=Math.Clamp((long)((t.Position-t.StartTime).TotalMilliseconds+advance),0,s.durationMs);
             s.positionConfidence=s.playback=="playing"?"estimated":"reported";
         }
-        if(s.positionConfidence=="unavailable") {
-            if(Platform=="netease")netease.TryApply(s);
-            if(Platform=="kugou")kugou.TryApply(s);
-        }
+        if(Platform=="netease") {netease.TryApply(s);s.timelineDetail=netease.Diagnostic;}
+        if(s.positionConfidence=="unavailable" && Platform=="kugou")kugou.TryApply(s);
         s.trackId=s.sourceApp+"|"+s.title+"|"+s.artist+"|"+s.durationMs;
-        if(lyrics is AutomaticLyrics platformLyrics)platformLyrics.Platform=Platform;
-        if(s.trackId!=key || lines.Count==0) {
-            key=s.trackId;
-            lines=lyrics.Get(s.title,s.artist,s.durationMs).Select(line=>line with {Text=LyricText.ToSimplified(line.Text)}).ToList();
+        string lyricKey=s.trackId;
+        if(lyrics is AutomaticLyrics platformLyrics) {
+            platformLyrics.Platform=Platform;platformLyrics.NetEaseSongId=Platform=="netease"?netease.VerifiedSongId:"";
+            lyricKey+="|"+platformLyrics.NetEaseSongId;
         }
+        var fetched=lyrics.Get(s.title,s.artist,s.durationMs);
+        if(lyricKey!=key || !ReferenceEquals(fetched,rawLines)) {
+            key=lyricKey;
+            rawLines=fetched;
+            lines=fetched.Select(line=>line with {Text=LyricText.ToSimplified(line.Text)}).ToList();
+        }
+        s.lyricLineCount=lines.Count;
+        if(lyrics is AutomaticLyrics lookup) {s.lyricsSource=lookup.Source;s.lyricsDetail=lookup.Diagnostic;}
         if(lines.Count>0 && s.positionConfidence!="unavailable") {
             s.lyricsState="matched"; var i=Lrc.Find(lines,s.positionMs+Offset);
             if(i>=0) {s.current=lines[i].Text;s.currentStartMs=lines[i].StartMs;}
             if(i+1<lines.Count) s.next=lines[i+1].Text;
-        } else s.lyricsState=s.positionConfidence=="unavailable" && s.title.Length>0?"timeline_unreliable":lyrics is AutomaticLyrics automatic?automatic.Status:"unavailable";
+        } else s.lyricsState=lines.Count>0?"timeline_unreliable":lyrics is AutomaticLyrics automatic?automatic.Status:"unavailable";
         return s;
     }
     public void Disconnect(bool manual=false) {revision++;target=null;if(manual)connection.Disconnect();else WantConnection=false;key="";lines.Clear();kugou.Reset();}
