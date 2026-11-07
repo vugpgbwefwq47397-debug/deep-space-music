@@ -22,7 +22,7 @@ public static class KugouLyrics {
     }
     public static async Task<List<LyricLine>> Fetch(string title,string artist,long duration) {
         using var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(8));
-        using var search=await Read("https://lyrics.kugou.com/search?ver=1&man=yes&client=pc&keyword="+Uri.EscapeDataString(title+" "+artist)+"&duration="+duration,timeout.Token);
+        using var search=await Read("https://lyrics.kugou.com/search?ver=1&man=yes&client=pc&keyword="+Uri.EscapeDataString(MetadataMatch.SearchTitle(title)+" "+MetadataMatch.SearchArtist(artist))+"&duration="+duration,timeout.Token);
         foreach(var candidate in Candidates(search.RootElement,title,artist,duration).Take(3)) {
             // The key identifies a public lyric document; no account token or cookie.
             using var download=await Read("https://lyrics.kugou.com/download?ver=1&client=pc&id="+candidate.Id+"&accesskey="+candidate.AccessKey+"&fmt=lrc&charset=utf8",timeout.Token);

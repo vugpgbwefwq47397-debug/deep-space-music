@@ -1,6 +1,13 @@
 # Probably Stolen: Immersive Lyrics / 深空当铺沉浸歌词
 
 
+
+## 0.2.7 歌曲匹配修复
+
+兼容尾部 Explicit 内容评级、feat./featuring/ft. 多人署名和中文艺人简繁差异。检索后仍核对全部歌手、原有2秒时长容差，保留 Clean、Radio Edit、Live、混音等版本标识；未标评级的候选不等于已确认其 Explicit 状态。酷狗窗口身份匹配同步改进。旧桥接显示明确升级提示，请先退出旧 MusicBridge，再完整解压并运行新版；工坊不能更新独立桥接。
+
+按公开候选元数据在线取词：Everywhere We Go 84行、Wasted 90行、STAY 58行、Baby 70/100行、I Really Want to Stay at Your House 66行。反馈者当前桥接和实际进度未知，以上不代表其电脑滚动已实测。截图中 Moves Like Jagger 的 Soul 版本名不完整，仍待确认，不能用普通版时间轴代替。
+
 ## 本地文件夹音乐与音频要求
 
 F9 / F10 → 连接与工具 → 音乐来源选择“本地文件夹音乐”，点击连接，再在字幕页／双击磁带的页面点击“选择音乐文件夹”。仅此操作打开系统文件夹选择框；正常同步在后台进行。桥接直接播放，使用磁带机播放／暂停、上下首、停止；播完按文件名排序循环，最多载入当前层 5000 首，不扫描子文件夹。记住上次文件夹，恢复时保持暂停。仍需独立运行 MusicBridge，无需音乐客户端或 SMTC。
@@ -12,11 +19,11 @@ F9 / F10 → 连接与工具 → 音乐来源选择“本地文件夹音乐”�
 F9 / F10 的字幕样式里可调“歌词不透明度”（0%–100%，保留原 88% 档）和“面板不透明度”（20%–100%，含面板文字）。100% 为完全不透明；面板不能设为 0%，修改立即应用并自动保存。
 
 
-**0.2.6 更新重点：新增本地文件夹音乐和透明度控制；必须同时更新 Mod 与独立 MusicBridge 至 0.2.6。**
+**0.2.7 更新重点：改进酷狗歌曲匹配及旧桥接提示；必须同时更新 Mod 与独立 MusicBridge 至 0.2.7。**
 
-Pixel lyrics and desktop music controls for **Probably Stolen**. Windows x64 · **v0.2.6 Preview**.
+Pixel lyrics and desktop music controls for **Probably Stolen**. Windows x64 · **v0.2.7 Preview**.
 
-**[Download v0.2.6 / 下载三平台预览版](https://github.com/vugpgbwefwq47397-debug/deep-space-music/releases/tag/v0.2.6)** · [Windows ZIP](https://github.com/vugpgbwefwq47397-debug/deep-space-music/releases/download/v0.2.6/DeepSpaceMusic-v0.2.6-win-x64.zip) · [SHA-256 checksums](https://github.com/vugpgbwefwq47397-debug/deep-space-music/releases/download/v0.2.6/SHA256SUMS.txt)
+**[Download v0.2.7 / 下载三平台预览版](https://github.com/vugpgbwefwq47397-debug/deep-space-music/releases/tag/v0.2.7)** · [Windows ZIP](https://github.com/vugpgbwefwq47397-debug/deep-space-music/releases/download/v0.2.7/DeepSpaceMusic-v0.2.7-win-x64.zip) · [SHA-256 checksums](https://github.com/vugpgbwefwq47397-debug/deep-space-music/releases/download/v0.2.7/SHA256SUMS.txt)
 
 **[Steam Workshop / 创意工坊](https://steamcommunity.com/sharedfiles/filedetails/?id=3834309955)** installs the game mod. Download the Windows ZIP above for the required external MusicBridge, and keep it outside Mods.
 
@@ -51,7 +58,7 @@ v0.2.3 fixes silent cassette claims: load a save first; the claim result explain
 
 ## Workshop users / 工坊用户先看这里
 
-Subscribe to the Workshop mod, then download the **[MusicBridge-only ZIP](https://github.com/vugpgbwefwq47397-debug/deep-space-music/releases/download/v0.2.6/MusicBridge-v0.2.6-win-x64.zip)**. Extract the entire ZIP outside Mods and double-click **Start-MusicBridge.cmd**. Keep its window open until you finish playing. The bridge-only ZIP contains no second game mod, avoiding duplicate installations.
+Subscribe to the Workshop mod, then download the **[MusicBridge-only ZIP](https://github.com/vugpgbwefwq47397-debug/deep-space-music/releases/download/v0.2.7/MusicBridge-v0.2.7-win-x64.zip)**. Extract the entire ZIP outside Mods and double-click **Start-MusicBridge.cmd**. Keep its window open until you finish playing. The bridge-only ZIP contains no second game mod, avoiding duplicate installations.
 
 **SMTC 正常不等于本地桥接已经启动。** 订阅工坊后仍需下载、完整解压独立桥接包，双击 `Start-MusicBridge.cmd` 并保持窗口开启。看到“本地管道已就绪”再在游戏中连接。不要只复制 EXE，也不要在 ZIP 内直接运行；桥接不能放进游戏 Mods 或工坊目录。
 
@@ -119,7 +126,7 @@ dotnet run --project tests/CoreTests.csproj -c Release
 
 The game assemblies are build references only and are not distributed. Prebuilt font atlas/metrics and their licenses are included. Historical queue helper classes remain for regression coverage; current runtime entry points reject queue/point-play requests and no QueueReader executable or QQ native library is shipped.
 
-Validation for 0.2.6: **182 core checks**, **33 isolated IPC checks**, and an official scan of **194 methods** without refusal/findings. Generated silent PCM WAV tests verified playback timing, sidecar LRC, pause, next, stop, paused folder restoration and invalidation of pending loads on disconnect. The new panel has not had in-game visual inspection. Historical client checks: Local KuGou 20.1.61.28014 returned a real timeline and 67 timed lines for “Always Online”. Pause held the clock; lyric reload preserved timing; a seek to 2:06 read back as 126000 ms. First valid timing took approximately 8 seconds in the measured cold-start run. The updated game UI has not had a new in-game visual inspection. These results do not prove support for every client version, skin, mini mode or recording.
+Validation for 0.2.7: **192 core checks**, **33 isolated IPC checks**, and an official scan of **194 methods** without refusal/findings. Generated silent PCM WAV tests verified playback timing, sidecar LRC, pause, next, stop, paused folder restoration and invalidation of pending loads on disconnect. The new panel has not had in-game visual inspection. Historical client checks: Local KuGou 20.1.61.28014 returned a real timeline and 67 timed lines for “Always Online”. Pause held the clock; lyric reload preserved timing; a seek to 2:06 read back as 126000 ms. First valid timing took approximately 8 seconds in the measured cold-start run. The updated game UI has not had a new in-game visual inspection. These results do not prove support for every client version, skin, mini mode or recording.
 
 In-save verification also passed: real dual-line pixel lyrics from both NetEase and KuGou, original cassette-player play/pause controls, and switching platforms with the same cassette still inserted.
 

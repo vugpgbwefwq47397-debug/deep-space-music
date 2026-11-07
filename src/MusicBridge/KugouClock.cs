@@ -15,8 +15,11 @@ public static class KugouClock {
         foreach(string prefix in new[]{"正在播放：","正在播放:","播放中：","播放中:"})
             if(name.StartsWith(prefix,StringComparison.Ordinal)){name=name[prefix.Length..].Trim();break;}
         var choices=new List<string>();
-        if(name.StartsWith(song+" - ",StringComparison.OrdinalIgnoreCase))choices.Add(name[(song.Length+3)..].Trim());
-        if(name.EndsWith(" - "+song,StringComparison.OrdinalIgnoreCase))choices.Add(name[..^(song.Length+3)].Trim());
+        for(int index=name.IndexOf(" - ",StringComparison.Ordinal);index>=0;index=name.IndexOf(" - ",index+3,StringComparison.Ordinal)) {
+            string left=name[..index].Trim(),right=name[(index+3)..].Trim();
+            if(MetadataMatch.Title(left,song))choices.Add(right);
+            if(MetadataMatch.Title(right,song))choices.Add(left);
+        }
         choices=choices.Where(x=>x.Length>0 && !MetadataMatch.Title(x,song)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         if(artist.Trim().Length>0)choices=choices.Where(x=>MetadataMatch.Artists(x,Display(artist))).ToList();
         if(choices.Count!=1)return false;

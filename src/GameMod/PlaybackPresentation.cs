@@ -29,6 +29,8 @@ public static class PlaybackPresentation {
         if(s.bridge=="offline")return "请下载并独立运行 MusicBridge；只订阅工坊、开启 SMTC 还不能连接本地桥接。";
         if(!s.connected)return s.platform=="local"?"选择本地音乐文件夹；支持未加密音频及同名 UTF-8 LRC，不需要 SMTC。":"本地桥接已连接；请先在音乐客户端播放歌曲，再选择平台并连接。";
         string info="桥接 "+(s.bridgeVersion.Length>0?s.bridgeVersion:"旧版")+" · "+LyricsStatus(s);
+        if(s.platform=="kugou" && Version.TryParse(s.bridgeVersion,out var version) && version.CompareTo(new Version(0,2,5))<0)
+            info="旧桥接缺少酷狗时钟修复：请关闭旧 MusicBridge，完整下载并运行新版；只更新工坊不够。\n"+info;
         info+="\n进度："+(s.positionConfidence=="unavailable"?"未提供":s.positionConfidence)+" · 时长 "+s.durationMs/1000+" 秒";
         if(s.lyricsSource.Length>0)info+=" · 来源 "+s.lyricsSource+" / "+s.lyricLineCount+" 行";
         if(s.positionConfidence=="unavailable")info+="\n"+(s.timelineDetail.Length>0?s.timelineDetail:s.platform=="kugou"?"酷狗未提供可靠进度。请使用普通主界面；当前皮肤或迷你模式可能不支持，反复拖进度或匹配歌词无法补出时钟。":"请在客户端播放或拖动进度一次；尚无可靠进度时只显示歌名。");

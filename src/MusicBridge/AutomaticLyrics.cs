@@ -67,7 +67,7 @@ public sealed class AutomaticLyrics : ILyricsProvider {
         return new([],"",string.Join("；",errors));
     }
     static async Task<List<LyricLine>> Fetch(string title,string artist,long ms) {
-            using var json=await LyricsHttp.Read("https://lrclib.net/api/search?track_name="+Uri.EscapeDataString(title)+"&artist_name="+Uri.EscapeDataString(artist));
+            using var json=await LyricsHttp.Read("https://lrclib.net/api/search?track_name="+Uri.EscapeDataString(MetadataMatch.SearchTitle(title))+"&artist_name="+Uri.EscapeDataString(MetadataMatch.SearchArtist(artist)));
             return ParseResponse(title,artist,ms,json.RootElement);
     }
     public static List<LyricLine> ParseResponse(string title,string artist,long ms,JsonElement root) {

@@ -79,7 +79,7 @@ public sealed class LocalFolderPlayer : IDisposable {
     public void Reload(){lock(gate)if(files.Length>0){try{lines=Sidecar(files[index]);error="";}catch(Exception e){error=e.Message;}}}
     public Snapshot Read(bool enabled,int offset) {
         lock(gate){active=enabled;if(enabled){EnsureLoaded();if(player==null && files.Length>0 && !loading && error.Length==0)_=Load(index,false,revision);}
-            var s=new Snapshot{platform="local",sourceApp="local",bridgeVersion="0.2.6",connectionEnabled=enabled,detected=files.Length>0,
+            var s=new Snapshot{platform="local",sourceApp="local",bridgeVersion="0.2.7",connectionEnabled=enabled,detected=files.Length>0,
                 connected=enabled && files.Length>0,title=title,artist=artist,offsetMs=offset,error=error,
                 timelineDetail=loading?"正在读取本地音频":picking?"正在选择音乐文件夹":message};
             if(!s.connected){s.error=error.Length>0?error:enabled?message:"";return s;}

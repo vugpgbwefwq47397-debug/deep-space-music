@@ -1,3 +1,11 @@
+# v0.2.7 · Reported KuGou songs / 酷狗歌曲匹配修复候选
+
+- Normalize the optional Explicit rating suffix in search and recording-title comparison; preserve Clean, Radio Edit, Live, remix and other recording qualifiers. An unlabelled catalog entry does not establish its explicitness rating.
+- Recognize featured-artist separators and simplified/traditional Chinese artist spelling while still checking the complete artist set and the existing two-second duration tolerance. Search by title and primary artist, then validate all collaborators.
+- Apply presentation normalization to KuGou window identity and show a direct upgrade hint for pre-0.2.5 KuGou bridges.
+- Online candidate metadata tests returned 84 lines for Everywhere We Go, 90 for Wasted, 58 for STAY, 70/100 for two Baby candidates and 66 for I Really Want to Stay at Your House. This verifies lookup using catalog durations, not playback on the reporting user's machine. The truncated Moves Like Jagger (Soul…) version remains unresolved; no ordinary-version timeline is substituted.
+- Update both mod and standalone MusicBridge to 0.2.7.
+
 # v0.2.6 · Local folder and opacity / 本地音乐与透明度
 
 - Add a local-folder source played by the standalone bridge, with an explicit system folder picker, top-level filename ordering, playback/pause/previous/next/stop, automatic looping, and paused folder restoration. It requires no music client or SMTC. Cancelled selection preserves the current folder; disconnect invalidates pending playback.

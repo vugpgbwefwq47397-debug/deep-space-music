@@ -7,12 +7,19 @@ namespace DeepSpaceMusic;
 public static class MetadataMatch {
     public static string Text(string value) => Regex.Replace((value??"").Normalize(NormalizationForm.FormKC)
         .Replace('’','\'').Replace('‘','\'').Replace('–','-').Replace('—','-').Trim(),@"\s+"," ").ToUpperInvariant();
-    public static bool Title(string a,string b)=>Text(a)==Text(b);
+    // Explicit is a content-rating suffix, often absent from another catalog's
+    // title. Preserve Clean, Radio Edit, Live, remix and all other qualifiers.
+    public static string SearchTitle(string value)=>Regex.Replace(Text(value),@"\s*[\(\[]EXPLICIT[\)\]]\s*$","").Trim();
+    public static bool Title(string a,string b)=>SearchTitle(a)==SearchTitle(b);
+    static string[] ArtistParts(string value) {
+        string text=LyricText.ToSimplified(Text(value));
+        text=Regex.Replace(text,@"\s+(?:FEAT(?:URING)?|FT)(?:\.\s*|\s+)"," / ");
+        return Regex.Split(text,@"\s*(?:/|、|;|；|&|,|，|\bAND\b)\s*").Where(x=>x.Length>0).ToArray();
+    }
+    public static string SearchArtist(string value)=>ArtistParts(value).FirstOrDefault()??"";
     public static bool Artists(string a,string b) {
         if(Text(a)==Text(b))return true;
-        static string[] Parts(string value)=>Regex.Split(Text(value),@"\s*(?:/|、|;|；|&|,|，|\bAND\b)\s*")
-            .Where(x=>x.Length>0).OrderBy(x=>x,StringComparer.Ordinal).ToArray();
-        var left=Parts(a);var right=Parts(b);
+        var left=ArtistParts(a).OrderBy(x=>x,StringComparer.Ordinal).ToArray();var right=ArtistParts(b).OrderBy(x=>x,StringComparer.Ordinal).ToArray();
         return left.Length>0 && left.SequenceEqual(right);
     }
     public static bool Recording(string title,string artist,long duration,string candidateTitle,string candidateArtist,double seconds)=>

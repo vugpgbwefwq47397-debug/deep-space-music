@@ -10,7 +10,7 @@ public static class NetEaseLyrics {
     }
     public static async Task<List<LyricLine>> Search(string title,string artist,long duration) {
         using var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(8));
-        using var json=await LyricsHttp.Read("https://music.163.com/api/search/get/web?s="+Uri.EscapeDataString(title+" "+artist)+"&type=1&offset=0&limit=20",timeout.Token);
+        using var json=await LyricsHttp.Read("https://music.163.com/api/search/get/web?s="+Uri.EscapeDataString(MetadataMatch.SearchTitle(title)+" "+MetadataMatch.SearchArtist(artist))+"&type=1&offset=0&limit=20",timeout.Token);
         EnsureResponse(json.RootElement);
         foreach(string id in Candidates(json.RootElement,title,artist,duration).Take(3)) {
             var lines=await Fetch(id,timeout.Token);if(lines.Count>0)return lines;

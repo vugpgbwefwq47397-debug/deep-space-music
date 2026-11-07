@@ -41,7 +41,7 @@ public sealed class Sessions : IDisposable {
     async Task<Snapshot> ReadCore(CancellationToken token) {
         int version=revision;
         if(Platform=="local") {var local=Local.Read(WantConnection,Offset);local.connectionEnabled=ConnectionEnabled;local.autoReconnect=AutoReconnect;return local;}
-        var s=new Snapshot {platform=Platform, autoReconnect=AutoReconnect,connectionEnabled=ConnectionEnabled,offsetMs=Offset,bridgeVersion="0.2.6"};
+        var s=new Snapshot {platform=Platform, autoReconnect=AutoReconnect,connectionEnabled=ConnectionEnabled,offsetMs=Offset,bridgeVersion="0.2.7"};
         manager ??= await GlobalSystemMediaTransportControlsSessionManager.RequestAsync().AsTask(token);
         token.ThrowIfCancellationRequested();
         if(version!=revision) throw new OperationCanceledException("音乐连接已变化");
