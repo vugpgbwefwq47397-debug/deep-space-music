@@ -35,6 +35,13 @@ try {
   $rejected=Request $bad
   Check (!$rejected.ok -and !$rejected.connected) 'malformed or unsupported request is rejected without connecting'
  }
+ $local=Request '{"action":"connect","platform":"local","autoReconnect":false}'
+ Check ($local.ok -and $local.platform -eq 'local' -and $local.connectionEnabled -and !$local.connected) 'local source connects without requiring SMTC and waits for an explicit folder'
+ Check ($local.error -like '*文件夹*' -and $local.error -notlike '*SMTC*') 'empty local source explains folder selection instead of external-client setup'
+ $localReload=Request '{"action":"reload","platform":"local"}'
+ Check ($localReload.ok -and $localReload.result -like '*文件夹*') 'local lyric reload returns useful feedback before a folder has been selected'
+ $localOff=Request '{"action":"disconnect","platform":"local"}'
+ Check ($localOff.ok -and !$localOff.connected -and !$localOff.connectionEnabled) 'local disconnect preserves the explicit disabled state'
  $selected=Request '{"action":"connect","platform":"qq","autoReconnect":false,"offsetMs":350}'
  Check ($selected.platform -eq 'qq' -and $selected.offsetMs -eq 350) 'explicit connection applies the requested offset'
  foreach($bad in @('{"action":"queue"}','{"action":"playQueue"}','{"action":"command","platform":"netease","command":"pause"}','{"action":"connect","platform":"other"}')) {

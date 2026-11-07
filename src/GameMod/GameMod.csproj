@@ -7,5 +7,6 @@
   <Reference Include="$(GameDir)\Probably Stolen_Data\Managed\0Harmony.dll" Private="false" />
   <Compile Include="../Shared/Protocol.cs" Link="Protocol.cs" />
   <Compile Include="../Shared/MusicPlatforms.cs" Link="MusicPlatforms.cs" />
+  <Compile Include="../Shared/VisualOpacity.cs" Link="VisualOpacity.cs" />
  </ItemGroup>
 </Project>

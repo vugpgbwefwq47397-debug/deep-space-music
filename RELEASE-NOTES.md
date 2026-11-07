@@ -1,3 +1,10 @@
+# v0.2.6 · Local folder and opacity / 本地音乐与透明度
+
+- Add a local-folder source played by the standalone bridge, with an explicit system folder picker, top-level filename ordering, playback/pause/previous/next/stop, automatic looping, and paused folder restoration. It requires no music client or SMTC. Cancelled selection preserves the current folder; disconnect invalidates pending playback.
+- Read exact same-basename UTF-8 LRC files beside audio, with a 2 MB limit and reload support. Local mode does not query online lyric services or transmit local file paths. Document supported extensions, Windows codec requirements, encrypted download exclusions and filename rules.
+- Add immediately saved lyric opacity (0–100%, including the old 88% value) and whole-panel opacity (20–100%). Clamp panel opacity independently, including invalid persisted values, so the UI cannot become fully invisible.
+- Both the game mod and MusicBridge must be updated to 0.2.6. The new panel has not been visually checked in the running game.
+
 # v0.2.5 · KuGou playback clock / 酷狗时钟修复
 
 - Reproduce KuGou returning song metadata but no SMTC timeline. Find the native playback bar using bounded, shallow container discovery, then read its actual elapsed/total clock on a background worker. Avoid whole-window searches through embedded pages, which exceeded two minutes in a local probe.

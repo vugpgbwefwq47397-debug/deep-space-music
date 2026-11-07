@@ -116,6 +116,7 @@ public class Terminal : MonoBehaviour {
         if(status!=null)status.text=PlaybackPresentation.Status(State);
         if(feedback!=null)feedback.text=Time.unscaledTime<diagnosticUntil && diagnostic.Length>0?diagnostic:details!=null?"连接状态与匹配结果会自动更新":"切换即生效 / 自动保存 / 拖动字幕可定位";
         if(details!=null)details.text=PlaybackPresentation.Details(State);
+        TerminalUI.ApplyOpacity(panel,ModEntry.PanelOpacity.Value);TerminalUI.ApplyOpacity(toolsPanel,ModEntry.PanelOpacity.Value);TerminalUI.ApplyOpacity(pickerPanel,ModEntry.PanelOpacity.Value);
         if(MotionActive && !LyricMotion.IsStill(ModEntry.AnimationMode.Value,ModEntry.ReducedMotion.Value)) AnimationClock+=Time.unscaledDeltaTime;
         Render();
     }
@@ -142,7 +143,7 @@ public class Terminal : MonoBehaviour {
         bool still=LyricMotion.IsStill(ModEntry.AnimationMode.Value,ModEntry.ReducedMotion.Value);
         if(!MotionActive || still)transition=AnimationClock-2;
         float t=PlaybackPresentation.Reveal(MotionActive,still,AnimationClock-transition,ModEntry.FadeMs.Value);
-        float eased=t*t*(3-2*t), alpha=ModEntry.Opacity.Value;
+        float eased=t*t*(3-2*t), alpha=VisualOpacity.Lyrics(ModEntry.Opacity.Value);
         if(!still && ModEntry.AnimationMode.Value=="呼吸悬浮") alpha*=.9f+.1f*Mathf.Sin(AnimationClock*1.6f);
         var primary=LyricColor(ModEntry.Theme.Value);
         float y=ModEntry.Position.Value=="上方"?420:ModEntry.Position.Value=="中间"?0:-390;
@@ -184,7 +185,7 @@ public class Terminal : MonoBehaviour {
     }
     public void Open() {
         CloseWindows();
-        var builder=TerminalUI.Window(".status","音乐终端 / 字幕控制",820,740);
+        var builder=TerminalUI.Window(".status","音乐终端 / 字幕控制",820,850);
         builder.BeginPanel(padding:12,spacing:8);
         builder.AddLabel("当前歌曲", "status");status=builder.Last.text;
         builder.Last.SetPreferredSize(-1,76);status.maxVisibleLines=2;status.enableWordWrapping=false;status.overflowMode=TextOverflowModes.Ellipsis;
@@ -203,6 +204,11 @@ public class Terminal : MonoBehaviour {
         builder.End().BeginColumn(6).AddLabel("字体颜色");
         TerminalUI.Column(builder);
         TerminalUI.Dropdown(builder,ModEntry.Colors,Math.Max(0,Array.IndexOf(ModEntry.Colors,ModEntry.Theme.Value)),i=>{ModEntry.Theme.Set(ModEntry.Colors[i]);SaveSettings();});builder.End().End();
+        builder.BeginRow(16).BeginColumn(6);TerminalUI.Column(builder);builder.AddLabel("歌词不透明度");
+        int opacityIndex=0;for(int i=1;i<ModEntry.Opacities.Length;i++)if(Math.Abs(ModEntry.Opacities[i]-ModEntry.Opacity.Value)<Math.Abs(ModEntry.Opacities[opacityIndex]-ModEntry.Opacity.Value))opacityIndex=i;
+        TerminalUI.Dropdown(builder,ModEntry.OpacityLabels,opacityIndex,i=>{ModEntry.Opacity.Set(ModEntry.Opacities[i]);SaveSettings();});
+        builder.End().BeginColumn(6);TerminalUI.Column(builder);builder.AddLabel("面板不透明度 · 最低20%");
+        TerminalUI.Dropdown(builder,new[]{"20%","30%","40%","50%","60%","70%","80%","90%","100%"},Mathf.RoundToInt(VisualOpacity.Panel(ModEntry.PanelOpacity.Value)*10)-2,i=>{ModEntry.PanelOpacity.Set((i+2)/10f);SaveSettings();});builder.End().End();
         builder.AddSeparator(verticalPadding:4).AddHeader("时间校准");
         int fadeIndex=0;
         for(int i=1;i<ModEntry.FadeDurations.Length;i++)if(Math.Abs(ModEntry.FadeDurations[i]-ModEntry.FadeMs.Value)<Math.Abs(ModEntry.FadeDurations[fadeIndex]-ModEntry.FadeMs.Value))fadeIndex=i;
@@ -265,9 +271,9 @@ public class Terminal : MonoBehaviour {
         CloseWindows();
         var builder=TerminalUI.Window(".picker","云音乐磁带 / 选歌",640,350);
         builder.AddHeader(MusicPlatforms.IsSupported(ModEntry.Platform.Value)?"在 "+MusicPlatforms.Name(ModEntry.Platform.Value)+" 中选择歌曲":"先选择你的音乐平台");
-        builder.AddLabel("返回游戏后，歌名与歌词自动同步。");
+        builder.AddLabel(ModEntry.Platform.Value=="local"?"支持常见未加密音频；同名 UTF-8 LRC 同步歌词。":"返回游戏后，歌名与歌词自动同步。");
         builder.AddSpace(12).AddButton(MusicPlatforms.OpenLabel(ModEntry.Platform.Value),OpenSelectedClient);TerminalUI.Fill(builder.Last,52);
-        builder.AddSpace(12).AddLabel("点击上方按钮才会调出客户端。");
+        builder.AddSpace(12).AddLabel(ModEntry.Platform.Value=="local"?"仅扫描文件夹当前层；播放／暂停、上下首使用磁带机。":"点击上方按钮才会调出客户端。");
         pickerPanel=TerminalUI.Show(builder,pixelFont);
     }
     void Style(TextMeshProUGUI line) {

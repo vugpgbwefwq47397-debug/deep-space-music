@@ -17,7 +17,7 @@ var json=new JsonSerializerOptions {IncludeFields=true};
 string root=Environment.GetEnvironmentVariable("DEEP_SPACE_MUSIC_DATA") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"DeepSpaceMusic");
 Directory.CreateDirectory(root);
 var automaticLyrics=new AutomaticLyrics(new LocalLyricsProvider(Path.Combine(root,"Lyrics")));
-using var sessions=new Sessions(automaticLyrics);
+using var sessions=new Sessions(automaticLyrics,root);
 if(args.Length==4 && args[0]=="--lyrics-check") {var list=automaticLyrics.Get(args[1],args[2],long.Parse(args[3]));for(int attempt=0;attempt<20 && automaticLyrics.Status=="loading_lrclib";attempt++){await Task.Delay(500);list=automaticLyrics.Get(args[1],args[2],long.Parse(args[3]));}Console.WriteLine(JsonSerializer.Serialize(new {source=automaticLyrics.Status,lineCount=list.Count}));return;}
 
 var config=Path.Combine(root,"bridge.json");
@@ -31,7 +31,7 @@ string pipeName=Environment.GetEnvironmentVariable("DEEP_SPACE_MUSIC_PIPE") ?? "
 if(pipeName.Length>64 || pipeName.Length==0 || pipeName.Any(c=>!char.IsAsciiLetterOrDigit(c) && c is not ('.' or '-' or '_')))throw new InvalidDataException("无效的本地管道名称");
 using var singleton=new Mutex(true,pipeName=="DeepSpaceMusic.v1"?"Local\\DeepSpaceMusicBridge":"Local\\"+pipeName,out bool created);
 if(!created) {Console.Error.WriteLine("桥接服务已在运行");return;}
-Console.WriteLine("沉浸歌词 MusicBridge 0.2.5 | 本机当前用户命名管道 | Ctrl+C 退出\n本地歌词: "+Path.Combine(root,"Lyrics"));
+Console.WriteLine("沉浸歌词 MusicBridge 0.2.6 | 本机当前用户命名管道 | Ctrl+C 退出\n本地歌词: "+Path.Combine(root,"Lyrics"));
 Console.WriteLine("请保持本窗口开启；游戏中 F9 / F10 → 连接与工具选择平台。SMTC 与本地桥接是两层连接。");
 using var stop=new CancellationTokenSource();
 Console.CancelKeyPress+=(s,e)=>{e.Cancel=true;stop.Cancel();};
@@ -69,7 +69,7 @@ while(!stop.IsCancellationRequested) {
                     break;
                 case "openClient":
                     if(req.platform!=sessions.Platform)throw new InvalidDataException("选歌平台与当前连接不一致，请重新连接");
-                    result=ClientPanel.Open(req.platform);break;
+                    result=req.platform=="local"?sessions.Local.PickFolder():ClientPanel.Open(req.platform);break;
                 case "queue":
                 case "playQueue":
                     throw new InvalidOperationException("游戏内歌单已取消，请双击磁带并点击打开所选音乐客户端选歌");

@@ -5,6 +5,11 @@ namespace DeepSpaceMusic;
 
 // Use the game's own machinery chrome and interaction sprites, scoped to our windows.
 public static class TerminalUI {
+    public static void ApplyOpacity(CustomUIWindow window,float value) {
+        if(window==null || !window.IsAlive || window.root==null)return;
+        var group=window.root.GetComponent<CanvasGroup>() ?? window.root.AddComponent<CanvasGroup>();
+        group.alpha=VisualOpacity.Panel(value);
+    }
     public static CustomUIBuilder Window(string id,string title,float width,float height) =>
         CustomUIManager.Instance.CreateWindow(ModEntry.Id+id,title,CustomUIManager.LAYER_OVERLAY,style:CustomUIManager.Style.Machinery)
             .SetSize(width,height).SetCloseOnEscape();
@@ -82,6 +87,6 @@ public static class TerminalUI {
             if(layout!=null){layout.minHeight=44;layout.preferredHeight=44;}
         }
         CustomUIBuilder.RebuildLayout(window.ContentRoot);
-        return window;
+        ApplyOpacity(window,ModEntry.PanelOpacity.Value);return window;
     }
 }

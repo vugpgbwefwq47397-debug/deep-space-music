@@ -8,10 +8,12 @@ public class ModEntry : IMod {
     public static readonly string[] Animations=LyricMotion.Modes;
     public static readonly string[] Colors={"青蓝","紫色","白色","暖黄","粉色","薄荷"};
     public static readonly string[] FontSizes={"12 px","24 px","36 px","48 px","60 px","72 px"};
+    public static readonly float[] Opacities={0,.1f,.2f,.3f,.4f,.5f,.6f,.7f,.8f,.88f,.9f,1};
+    public static readonly string[] OpacityLabels={"0%","10%","20%","30%","40%","50%","60%","70%","80%","88%","90%","100%"};
     public static readonly int[] FadeDurations={0,50,100,150,200,300,500,750,1000};
     public static readonly string[] FadeOptions={"立即显示 · 0 ms","50 ms","100 ms","150 ms","200 ms","300 ms","500 ms","750 ms","1000 ms"};
     public static ConfigEntry<bool> Reconnect, ConnectionEnabled, PauseEject, Show, TwoLines, ReducedMotion, Draggable;
-    public static ConfigEntry<float> Size, Opacity, Glow, X, Y, Motion;
+    public static ConfigEntry<float> Size, Opacity, PanelOpacity, Glow, X, Y, Motion;
     public static ConfigEntry<int> Offset, FadeMs;
     GameObject root;
     public void Init(ModManifest manifest) {
@@ -31,7 +33,9 @@ public class ModEntry : IMod {
         Motion=Config.Define("motion",1f,"霓虹悬浮歌词",()=>"动效强度",0f,2f);
         Size=Config.Define("fontSize",24f,"霓虹悬浮歌词",()=>"字体大小",12f,72f);
         FadeMs=Config.Define("fadeDurationMs",150,"霓虹悬浮歌词",()=>"浮现时长 ms（0 为立即）",0,1000);
-        Opacity=Config.Define("opacity",0.88f,"霓虹悬浮歌词",()=>"文字透明度",0.2f,1f);
+        Opacity=Config.Define("opacity",0.88f,"霓虹悬浮歌词",()=>"歌词不透明度（0 全透明 / 1 不透明）",0f,1f);
+        PanelOpacity=Config.Define("panelOpacity",1f,"操作",()=>"面板不透明度（最低 0.2）",.2f,1f);
+        Opacity.Set(VisualOpacity.Lyrics(Opacity.Value));PanelOpacity.Set(VisualOpacity.Panel(PanelOpacity.Value));
         Glow=Config.Define("glow",0.3f,"霓虹悬浮歌词",()=>"发光描边强度",0f,1f);
         Theme=Config.Define("theme","青蓝","霓虹悬浮歌词",()=>"字体颜色",choices:Colors);
         Position=Config.Define("position","下方","霓虹悬浮歌词",()=>"位置",choices:new[]{"下方","中间","上方"});

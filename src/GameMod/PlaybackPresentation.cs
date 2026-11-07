@@ -20,14 +20,14 @@ public static class PlaybackPresentation {
     }
     public static string Status(Snapshot s) {
         if(s.bridge=="offline")return "桥接未连接\n请启动 MusicBridge";
-        if(!s.connected)return "未连接音乐客户端\n请打开连接与工具";
+        if(!s.connected)return s.platform=="local"?"本地音乐尚未就绪\n请选择音乐文件夹并连接":"未连接音乐客户端\n请打开连接与工具";
         string playback=s.playback=="playing"?"正在播放":s.playback=="paused"?"已暂停":s.playback=="stopped"?"已停止":"等待播放";
         return s.title+" — "+s.artist+"\n"+playback+" · "+LyricsStatus(s);
     }
     public static string Details(Snapshot s) {
         if(s.error.Length>0)return s.error;
         if(s.bridge=="offline")return "请下载并独立运行 MusicBridge；只订阅工坊、开启 SMTC 还不能连接本地桥接。";
-        if(!s.connected)return "本地桥接已连接；请先在音乐客户端播放歌曲，再选择平台并连接。";
+        if(!s.connected)return s.platform=="local"?"选择本地音乐文件夹；支持未加密音频及同名 UTF-8 LRC，不需要 SMTC。":"本地桥接已连接；请先在音乐客户端播放歌曲，再选择平台并连接。";
         string info="桥接 "+(s.bridgeVersion.Length>0?s.bridgeVersion:"旧版")+" · "+LyricsStatus(s);
         info+="\n进度："+(s.positionConfidence=="unavailable"?"未提供":s.positionConfidence)+" · 时长 "+s.durationMs/1000+" 秒";
         if(s.lyricsSource.Length>0)info+=" · 来源 "+s.lyricsSource+" / "+s.lyricLineCount+" 行";

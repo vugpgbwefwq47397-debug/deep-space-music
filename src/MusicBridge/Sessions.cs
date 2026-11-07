@@ -5,6 +5,7 @@ public sealed class Sessions : IDisposable {
     GlobalSystemMediaTransportControlsSessionManager? manager;
     GlobalSystemMediaTransportControlsSession? target;
     readonly ILyricsProvider lyrics;
+    public readonly LocalFolderPlayer Local;
     readonly SemaphoreSlim readGate=new(1,1);
     int revision;
     string key="";
@@ -19,7 +20,7 @@ public sealed class Sessions : IDisposable {
     public bool ConnectionEnabled=>connection.Enabled;
     public void RestoreConnection(bool autoReconnect,bool enabled)=>connection.Restore(autoReconnect,enabled);
     public int Offset;
-    public Sessions(ILyricsProvider provider) { lyrics=provider; }
+    public Sessions(ILyricsProvider provider,string? root=null) { lyrics=provider;Local=new(root??Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"DeepSpaceMusic")); }
     public static bool Matches(string platform, string id) {
         // Exact unpackaged executable identities, plus known packaged identity prefix.
         var name=Path.GetFileNameWithoutExtension(id);
@@ -39,7 +40,8 @@ public sealed class Sessions : IDisposable {
     }
     async Task<Snapshot> ReadCore(CancellationToken token) {
         int version=revision;
-        var s=new Snapshot {platform=Platform, autoReconnect=AutoReconnect,connectionEnabled=ConnectionEnabled,offsetMs=Offset,bridgeVersion="0.2.5"};
+        if(Platform=="local") {var local=Local.Read(WantConnection,Offset);local.connectionEnabled=ConnectionEnabled;local.autoReconnect=AutoReconnect;return local;}
+        var s=new Snapshot {platform=Platform, autoReconnect=AutoReconnect,connectionEnabled=ConnectionEnabled,offsetMs=Offset,bridgeVersion="0.2.6"};
         manager ??= await GlobalSystemMediaTransportControlsSessionManager.RequestAsync().AsTask(token);
         token.ThrowIfCancellationRequested();
         if(version!=revision) throw new OperationCanceledException("音乐连接已变化");
@@ -94,10 +96,11 @@ public sealed class Sessions : IDisposable {
         } else s.lyricsState=lines.Count>0?"timeline_unreliable":lyrics is AutomaticLyrics automatic?automatic.Status:"unavailable";
         return s;
     }
-    public void Disconnect(bool manual=false) {revision++;target=null;if(manual)connection.Disconnect();else WantConnection=false;key="";lines.Clear();kugou.Reset();}
-    public void Dispose() {kugou.Dispose();readGate.Dispose();}
-    public void ReloadLyrics() { key="";lines.Clear();rawLines=null;if(lyrics is AutomaticLyrics automatic)automatic.Reset(); }
+    public void Disconnect(bool manual=false) {revision++;Local.Pause();target=null;if(manual)connection.Disconnect();else WantConnection=false;key="";lines.Clear();kugou.Reset();}
+    public void Dispose() {Local.Dispose();kugou.Dispose();readGate.Dispose();}
+    public void ReloadLyrics() { if(Platform=="local")Local.Reload();key="";lines.Clear();rawLines=null;if(lyrics is AutomaticLyrics automatic)automatic.Reset(); }
     public async Task<(bool ok,string result)> Control(string command,CancellationToken token=default) {
+        if(Platform=="local")return ConnectionEnabled && WantConnection?Local.Control(command):(false,"请先连接本地文件夹音乐");
         var before=await Read(token); var session=target;
         if(session==null || !before.connected) return(false,before.error);
         bool accepted=command switch {

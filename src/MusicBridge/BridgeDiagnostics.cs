@@ -6,7 +6,7 @@ namespace DeepSpaceMusic;
 
 public static class BridgeDiagnostics {
     public static async Task<int> Run() {
-        Console.WriteLine("沉浸歌词 MusicBridge 0.2.5 只读诊断（不播放、不切歌、不读取账号凭据）");
+        Console.WriteLine("沉浸歌词 MusicBridge 0.2.6 只读诊断（不播放、不切歌、不读取账号凭据）");
         Console.WriteLine("Windows: "+Environment.OSVersion.VersionString+" / "+System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture);
         try {
             using var pipe=new NamedPipeClientStream(".","DeepSpaceMusic.v1",PipeDirection.InOut,PipeOptions.Asynchronous);
@@ -30,7 +30,8 @@ public static class BridgeDiagnostics {
         try {
             var manager=await GlobalSystemMediaTransportControlsSessionManager.RequestAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
             var ids=manager.GetSessions().Select(s=>s.SourceAppUserModelId).ToArray();
-            foreach(string platform in MusicPlatforms.Ids)Console.WriteLine(MusicPlatforms.Name(platform)+" SMTC："+(ids.Any(id=>Sessions.Matches(platform,id))?"已检测到":"未检测到；请在客户端开启系统媒体控件并播放一首歌"));
+            foreach(string platform in MusicPlatforms.Ids.Where(p=>p!="local"))Console.WriteLine(MusicPlatforms.Name(platform)+" SMTC："+(ids.Any(id=>Sessions.Matches(platform,id))?"已检测到":"未检测到；请在客户端开启系统媒体控件并播放一首歌"));
+            Console.WriteLine("本地文件夹音乐：使用独立播放器，无需 SMTC；在游戏内点击选择音乐文件夹。");
             Console.WriteLine("SMTC 检测与本地管道是两层连接，请分别检查上面的结果。");
             return 0;
         } catch(Exception e) {Console.WriteLine("SMTC 访问失败（"+e.GetType().Name+"），请检查 Windows 媒体会话环境。");return 1;}
