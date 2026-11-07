@@ -1,3 +1,9 @@
+# v0.2.4 · Static lyrics / 静态歌词
+
+- Add “静态” to the lyric-effect selector in F9/F10 and the official Mod settings. Selection applies immediately and saves with the existing animation setting.
+- Static lyrics keep their original glyph geometry and opacity, with no character motion, breathing, entrance fade, slide, scale pulse or outgoing-line transition. Lines still update with playback and remain draggable; size, colour and timing controls remain available.
+- Preserve the ten animated effects and the existing reduced-motion setting. Switching to static regenerates clean text geometry to remove the previous deformation. MusicBridge is unchanged from v0.2.2 and remains compatible.
+
 # v0.2.3 · Cassette claim feedback / 磁带领取热修复
 
 - Fix the cassette-claim button silently doing nothing in the main menu. It now explains that a save must be loaded, independently of the music connection.

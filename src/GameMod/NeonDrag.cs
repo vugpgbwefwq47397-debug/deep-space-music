@@ -25,7 +25,7 @@ public class PixelWiggle : MonoBehaviour {
         if(Terminal.Instance==null) return;
         bool visible=canvas!=null && canvas.isActiveAndEnabled && label.color.a>.005f && label.text.Length>0;
         if(!visible) {wasVisible=false;return;}
-        string mode=ModEntry.AnimationMode.Value;float amount=ModEntry.Motion.Value;bool reduced=ModEntry.ReducedMotion.Value;
+        string mode=ModEntry.AnimationMode.Value;float amount=ModEntry.Motion.Value;bool reduced=LyricMotion.IsStill(mode,ModEntry.ReducedMotion.Value);
         int p=Mathf.FloorToInt(Terminal.Instance.AnimationClock*LyricMotion.FramesPerSecond);
         bool changed=lastMode!=mode || lastAmount!=amount || lastReduced!=reduced;
         if(!wasVisible || changed || (p!=phase && !reduced && amount>0)) {
@@ -37,7 +37,7 @@ public class PixelWiggle : MonoBehaviour {
         wasVisible=true;
     }
     void Deform(TMP_TextInfo info) {
-        if(Terminal.Instance==null || ModEntry.ReducedMotion.Value || ModEntry.Motion.Value<=0) return;
+        if(Terminal.Instance==null || LyricMotion.IsStill(ModEntry.AnimationMode.Value,ModEntry.ReducedMotion.Value) || ModEntry.Motion.Value<=0) return;
         float factor=Mathf.Max(.01f,canvas.scaleFactor);
         float amount=ModEntry.Motion.Value*(gameObject.name=="Next"?.55f:1f);
         float unit=Mathf.Clamp(label.fontSize*factor/24f,.75f,3f)/factor;

@@ -116,7 +116,7 @@ public class Terminal : MonoBehaviour {
         if(status!=null)status.text=PlaybackPresentation.Status(State);
         if(feedback!=null)feedback.text=Time.unscaledTime<diagnosticUntil && diagnostic.Length>0?diagnostic:"切换即生效 / 自动保存 / 拖动字幕可定位";
         if(details!=null)details.text=Time.unscaledTime<diagnosticUntil && diagnostic.Length>0?diagnostic:PlaybackPresentation.Details(State);
-        if(MotionActive && !ModEntry.ReducedMotion.Value) AnimationClock+=Time.unscaledDeltaTime;
+        if(MotionActive && !LyricMotion.IsStill(ModEntry.AnimationMode.Value,ModEntry.ReducedMotion.Value)) AnimationClock+=Time.unscaledDeltaTime;
         Render();
     }
     bool ShortcutPressed() {
@@ -139,7 +139,7 @@ public class Terminal : MonoBehaviour {
         string key=track+"|"+State.currentStartMs+"|"+a;
         if(key!=lastKey) {outgoing.text=current.text;current.text=a;next.text=b;transition=AnimationClock-(MotionActive?0:1);lastKey=key;}
         next.text=b;
-        bool still=ModEntry.ReducedMotion.Value;
+        bool still=LyricMotion.IsStill(ModEntry.AnimationMode.Value,ModEntry.ReducedMotion.Value);
         if(!MotionActive || still)transition=AnimationClock-2;
         float t=PlaybackPresentation.Reveal(MotionActive,still,AnimationClock-transition,ModEntry.FadeMs.Value);
         float eased=t*t*(3-2*t), alpha=ModEntry.Opacity.Value;

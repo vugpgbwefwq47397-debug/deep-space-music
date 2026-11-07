@@ -73,8 +73,20 @@ Check(QqQueueReader.Validate(new QueueReadResult {ok=true,total=0,tracks=[]}).Le
 var pending=new TaskCompletionSource<QueueTrack[]>();var inFlight=new ClientQueue(()=>pending.Task,()=>"same");
 inFlight.Request("qq",0,true);await Task.Delay(10);inFlight.Clear();pending.SetResult(songs);await Task.Delay(20);inFlight.Apply(snapshot);
 Check(snapshot.queueState=="unavailable" && snapshot.queueTotal==0,"late background response cannot repopulate disconnected queue");
-// A held lyric must keep visibly moving after its entrance, including at 12 px.
+// Static mode must suppress both mesh motion and the separate entrance transition.
+bool staticIdentity=true;
+foreach(float seconds in new[]{0f,.15f,2f,20f})
+foreach(int index in new[]{0,5,11})
+foreach(float strength in new[]{0f,1f,2f}) {
+ var pose=LyricMotion.Sample(LyricMotion.StaticMode,seconds,index,12,strength);
+ staticIdentity&=pose.X==0 && pose.Y==0 && pose.ScaleX==1 && pose.ScaleY==1 && pose.Angle==0;
+}
+Check(staticIdentity,"static lyrics preserve original geometry across time, characters and animation strengths");
+Check(LyricMotion.IsStill(LyricMotion.StaticMode,false) && LyricMotion.IsStill("呼吸悬浮",true) && !LyricMotion.IsStill("呼吸悬浮",false),"static selection and legacy reduced-motion setting stop the same rendering paths");
+Check(PlaybackPresentation.Reveal(true,LyricMotion.IsStill(LyricMotion.StaticMode,false),0,1000)==1,"static lyrics appear immediately even with a configured entrance duration");
+// Every animated mode must keep visibly moving after its entrance, including at 12 px.
 foreach(var mode in LyricMotion.Modes) {
+ if(mode==LyricMotion.StaticMode)continue;
  var frames=new HashSet<string>();bool bounded=true;
  for(int tick=32;tick<96;tick++) {
   var frame=new System.Text.StringBuilder();

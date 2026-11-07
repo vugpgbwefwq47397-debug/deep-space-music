@@ -1,18 +1,20 @@
 # Probably Stolen: Immersive Lyrics / 深空当铺沉浸歌词
 
-Pixel lyrics and desktop music controls for **Probably Stolen**. Windows x64 · **v0.2.3 Preview**.
+Pixel lyrics and desktop music controls for **Probably Stolen**. Windows x64 · **v0.2.4 Preview**.
 
-**[Download v0.2.3 / 下载三平台预览版](https://github.com/vugpgbwefwq47397-debug/deep-space-music/releases/tag/v0.2.3)** · [Windows ZIP](https://github.com/vugpgbwefwq47397-debug/deep-space-music/releases/download/v0.2.3/DeepSpaceMusic-v0.2.3-win-x64.zip) · [SHA-256 checksums](https://github.com/vugpgbwefwq47397-debug/deep-space-music/releases/download/v0.2.3/SHA256SUMS.txt)
+**[Download v0.2.4 / 下载三平台预览版](https://github.com/vugpgbwefwq47397-debug/deep-space-music/releases/tag/v0.2.4)** · [Windows ZIP](https://github.com/vugpgbwefwq47397-debug/deep-space-music/releases/download/v0.2.4/DeepSpaceMusic-v0.2.4-win-x64.zip) · [SHA-256 checksums](https://github.com/vugpgbwefwq47397-debug/deep-space-music/releases/download/v0.2.4/SHA256SUMS.txt)
 
 **[Steam Workshop / 创意工坊](https://steamcommunity.com/sharedfiles/filedetails/?id=3834309955)** installs the game mod. Download the Windows ZIP above for the required external MusicBridge, and keep it outside Mods.
 
-Use the original cassette player to control your desktop music client. Display draggable, synchronized lyrics with 10 continuous pixel effects. The F9/F10 panel uses the game's machinery style; settings apply immediately and save automatically.
+Use the original cassette player to control your desktop music client. Display draggable, synchronized lyrics with a static mode and 10 continuous pixel effects. The F9/F10 panel uses the game's machinery style; settings apply immediately and save automatically.
+
+v0.2.4 adds **静态 / Static** to the effect selector. It applies immediately, updates lyric lines without animation and saves automatically. Dragging, size, colour and timing remain configurable. MusicBridge is unchanged; existing v0.2.2 bridge users only need the new game mod.
 
 v0.2.3 fixes silent cassette claims: load a save first; the claim result explains delivery, inventory space or errors. MusicBridge remains the compatible v0.2.2 binary, so existing v0.2.2 bridge users only need the updated game mod.
 
 ## 简介
 
-在《深空当铺》原版磁带机中放入云音乐磁带，即可控制桌面音乐客户端，并显示可拖动的双行像素歌词。支持 10 种持续动效、6 档字号和 6 种颜色，所有设置即时应用。默认浮现 150 ms，歌词提前 100 ms。
+在《深空当铺》原版磁带机中放入云音乐磁带，即可控制桌面音乐客户端，并显示可拖动的双行像素歌词。支持静态模式、10 种持续动效、6 档字号和 6 种颜色，所有设置即时应用。默认浮现 150 ms，歌词提前 100 ms。
 
 ## Requirements / 运行要求
 
@@ -33,7 +35,7 @@ v0.2.3 fixes silent cassette claims: load a save first; the claim result explain
 
 ## Workshop users / 工坊用户先看这里
 
-Subscribe to the Workshop mod, then download the **[MusicBridge-only ZIP](https://github.com/vugpgbwefwq47397-debug/deep-space-music/releases/download/v0.2.3/MusicBridge-v0.2.3-win-x64.zip)**. Extract the entire ZIP outside Mods and double-click **Start-MusicBridge.cmd**. Keep its window open until you finish playing. The bridge-only ZIP contains no second game mod, avoiding duplicate installations.
+Subscribe to the Workshop mod, then download the **[MusicBridge-only ZIP](https://github.com/vugpgbwefwq47397-debug/deep-space-music/releases/download/v0.2.4/MusicBridge-v0.2.4-win-x64.zip)**. Extract the entire ZIP outside Mods and double-click **Start-MusicBridge.cmd**. Keep its window open until you finish playing. The bridge-only ZIP contains no second game mod, avoiding duplicate installations.
 
 **SMTC 正常不等于本地桥接已经启动。** 订阅工坊后仍需下载、完整解压独立桥接包，双击 `Start-MusicBridge.cmd` 并保持窗口开启。看到“本地管道已就绪”再在游戏中连接。不要只复制 EXE，也不要在 ZIP 内直接运行；桥接不能放进游戏 Mods 或工坊目录。
 
@@ -101,7 +103,7 @@ dotnet run --project tests/CoreTests.csproj -c Release
 
 The game assemblies are build references only and are not distributed. Prebuilt font atlas/metrics and their licenses are included. Historical queue helper classes remain for regression coverage; current runtime entry points reject queue/point-play requests and no QueueReader executable or QQ native library is shipped.
 
-Validation for 0.2.3: **159 core checks**, **29 isolated IPC checks**, and an official mod scan without refusal/findings. The original downloaded Workshop DLL was tested against a clean extraction of the released bridge: three real pipe calls passed after startup, while the same calls timed out without a bridge. Real public NetEase lyrics for two recordings returned 62 and 65 timed lines. These checks do not prove compatibility with every client version or song. Current Workshop in-game verification is recorded separately; no exhaustive coverage is claimed.
+Validation for 0.2.4: **162 core checks**, **29 isolated IPC checks**, and an official mod scan without refusal/findings. The original downloaded Workshop DLL was tested against a clean extraction of the released bridge: three real pipe calls passed after startup, while the same calls timed out without a bridge. Real public NetEase lyrics for two recordings returned 62 and 65 timed lines. These checks do not prove compatibility with every client version or song. Current Workshop in-game verification is recorded separately; no exhaustive coverage is claimed.
 
 In-save verification also passed: real dual-line pixel lyrics from both NetEase and KuGou, original cassette-player play/pause controls, and switching platforms with the same cassette still inserted.
 

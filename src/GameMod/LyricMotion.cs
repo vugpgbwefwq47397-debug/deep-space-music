@@ -4,12 +4,15 @@ namespace DeepSpaceMusic;
 // No Unity dependencies: sample from absolute time, never from the previous mesh.
 public static class LyricMotion {
     public const int FramesPerSecond=16;
-    public static readonly string[] Modes={"像素轻跳","波浪流动","接力弹跳","呼吸悬浮","横向摇摆","螺旋漂浮","弹簧伸缩","阶梯律动","果冻摇摆","涟漪扩散"};
+    public const string StaticMode="静态";
+    public static readonly string[] Modes={"像素轻跳","波浪流动","接力弹跳","呼吸悬浮","横向摇摆","螺旋漂浮","弹簧伸缩","阶梯律动","果冻摇摆","涟漪扩散",StaticMode};
+    public static bool IsStill(string mode,bool reducedMotion)=>reducedMotion || mode==StaticMode;
     public struct Pose {
         public float X,Y,ScaleX,ScaleY,Angle;
         public Pose(float x,float y,float sx,float sy,float angle=0) {X=x;Y=y;ScaleX=sx;ScaleY=sy;Angle=angle;}
     }
     public static Pose Sample(string mode,float seconds,int index,int count,float amount) {
+        if(mode==StaticMode)return new Pose(0,0,1,1);
         double t=seconds,i=index;
         float x=0,y=0,sx=1,sy=1,angle=0;
         switch(mode) {
