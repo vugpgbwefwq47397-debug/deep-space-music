@@ -114,8 +114,8 @@ public class Terminal : MonoBehaviour {
         if(Bound && Deck.Owner!=null) Deck.State(Deck.Owner,State.connected?(State.playback=="playing"?1:2):0);
         if(EmporiumEntry.Instance==null && Bound) Deck.Release(ModEntry.PauseEject.Value);
         if(status!=null)status.text=PlaybackPresentation.Status(State);
-        if(feedback!=null)feedback.text=Time.unscaledTime<diagnosticUntil && diagnostic.Length>0?diagnostic:"切换即生效 / 自动保存 / 拖动字幕可定位";
-        if(details!=null)details.text=Time.unscaledTime<diagnosticUntil && diagnostic.Length>0?diagnostic:PlaybackPresentation.Details(State);
+        if(feedback!=null)feedback.text=Time.unscaledTime<diagnosticUntil && diagnostic.Length>0?diagnostic:details!=null?"连接状态与匹配结果会自动更新":"切换即生效 / 自动保存 / 拖动字幕可定位";
+        if(details!=null)details.text=PlaybackPresentation.Details(State);
         if(MotionActive && !LyricMotion.IsStill(ModEntry.AnimationMode.Value,ModEntry.ReducedMotion.Value)) AnimationClock+=Time.unscaledDeltaTime;
         Render();
     }
@@ -230,6 +230,8 @@ public class Terminal : MonoBehaviour {
         builder.AddButton("重新匹配歌词",()=>Send("reload"));TerminalUI.Fill(builder.Last);
         builder.AddButton("领取云音乐磁带",ClaimCassette);
         TerminalUI.Fill(builder.Last);
+        builder.AddLabel("操作提示");feedback=builder.Last.text;
+        feedback.enableWordWrapping=true;feedback.maxVisibleLines=2;feedback.overflowMode=TextOverflowModes.Ellipsis;builder.Last.SetPreferredSize(-1,52);
         builder.AddLabel("状态信息", "diagnostics");
         details=builder.Last.text;details.maxVisibleLines=5;details.overflowMode=TextOverflowModes.Ellipsis;builder.Last.SetPreferredSize(-1,160);
         builder.BeginRow(12).AddButton("返回字幕设置",Open);TerminalUI.Fill(builder.Last);

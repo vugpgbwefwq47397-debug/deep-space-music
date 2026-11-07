@@ -39,7 +39,7 @@ public sealed class Sessions : IDisposable {
     }
     async Task<Snapshot> ReadCore(CancellationToken token) {
         int version=revision;
-        var s=new Snapshot {platform=Platform, autoReconnect=AutoReconnect,connectionEnabled=ConnectionEnabled,offsetMs=Offset,bridgeVersion="0.2.2"};
+        var s=new Snapshot {platform=Platform, autoReconnect=AutoReconnect,connectionEnabled=ConnectionEnabled,offsetMs=Offset,bridgeVersion="0.2.5"};
         manager ??= await GlobalSystemMediaTransportControlsSessionManager.RequestAsync().AsTask(token);
         token.ThrowIfCancellationRequested();
         if(version!=revision) throw new OperationCanceledException("音乐连接已变化");
@@ -72,7 +72,7 @@ public sealed class Sessions : IDisposable {
             s.positionConfidence=s.playback=="playing"?"estimated":"reported";
         }
         if(Platform=="netease") {netease.TryApply(s);s.timelineDetail=netease.Diagnostic;}
-        if(s.positionConfidence=="unavailable" && Platform=="kugou")kugou.TryApply(s);
+        if(s.positionConfidence=="unavailable" && Platform=="kugou") {kugou.TryApply(s);s.timelineDetail=kugou.Diagnostic;}
         s.trackId=s.sourceApp+"|"+s.title+"|"+s.artist+"|"+s.durationMs;
         string lyricKey=s.trackId;
         if(lyrics is AutomaticLyrics platformLyrics) {
@@ -96,7 +96,7 @@ public sealed class Sessions : IDisposable {
     }
     public void Disconnect(bool manual=false) {revision++;target=null;if(manual)connection.Disconnect();else WantConnection=false;key="";lines.Clear();kugou.Reset();}
     public void Dispose() {kugou.Dispose();readGate.Dispose();}
-    public void ReloadLyrics() { key="";lines.Clear();if(lyrics is AutomaticLyrics automatic)automatic.Reset(); }
+    public void ReloadLyrics() { key="";lines.Clear();rawLines=null;if(lyrics is AutomaticLyrics automatic)automatic.Reset(); }
     public async Task<(bool ok,string result)> Control(string command,CancellationToken token=default) {
         var before=await Read(token); var session=target;
         if(session==null || !before.connected) return(false,before.error);

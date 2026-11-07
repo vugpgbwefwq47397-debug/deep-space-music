@@ -31,7 +31,7 @@ public static class PlaybackPresentation {
         string info="桥接 "+(s.bridgeVersion.Length>0?s.bridgeVersion:"旧版")+" · "+LyricsStatus(s);
         info+="\n进度："+(s.positionConfidence=="unavailable"?"未提供":s.positionConfidence)+" · 时长 "+s.durationMs/1000+" 秒";
         if(s.lyricsSource.Length>0)info+=" · 来源 "+s.lyricsSource+" / "+s.lyricLineCount+" 行";
-        if(s.positionConfidence=="unavailable")info+="\n"+(s.timelineDetail.Length>0?s.timelineDetail:"请在客户端播放或拖动进度一次；尚无可靠进度时只显示歌名。");
+        if(s.positionConfidence=="unavailable")info+="\n"+(s.timelineDetail.Length>0?s.timelineDetail:s.platform=="kugou"?"酷狗未提供可靠进度。请使用普通主界面；当前皮肤或迷你模式可能不支持，反复拖进度或匹配歌词无法补出时钟。":"请在客户端播放或拖动进度一次；尚无可靠进度时只显示歌名。");
         if(s.lyricsDetail.Length>0)info+="\n"+s.lyricsDetail;
         else if(s.lyricsState=="no_matching_lyrics")info+="\n各来源暂无该录音的匹配时间轴，可自备 LRC，或点击重新匹配歌词。";
         return info;

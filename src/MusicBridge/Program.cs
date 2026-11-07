@@ -31,7 +31,7 @@ string pipeName=Environment.GetEnvironmentVariable("DEEP_SPACE_MUSIC_PIPE") ?? "
 if(pipeName.Length>64 || pipeName.Length==0 || pipeName.Any(c=>!char.IsAsciiLetterOrDigit(c) && c is not ('.' or '-' or '_')))throw new InvalidDataException("无效的本地管道名称");
 using var singleton=new Mutex(true,pipeName=="DeepSpaceMusic.v1"?"Local\\DeepSpaceMusicBridge":"Local\\"+pipeName,out bool created);
 if(!created) {Console.Error.WriteLine("桥接服务已在运行");return;}
-Console.WriteLine("沉浸歌词 MusicBridge 0.2.2 | 本机当前用户命名管道 | Ctrl+C 退出\n本地歌词: "+Path.Combine(root,"Lyrics"));
+Console.WriteLine("沉浸歌词 MusicBridge 0.2.5 | 本机当前用户命名管道 | Ctrl+C 退出\n本地歌词: "+Path.Combine(root,"Lyrics"));
 Console.WriteLine("请保持本窗口开启；游戏中 F9 / F10 → 连接与工具选择平台。SMTC 与本地桥接是两层连接。");
 using var stop=new CancellationTokenSource();
 Console.CancelKeyPress+=(s,e)=>{e.Cancel=true;stop.Cancel();};
@@ -86,7 +86,7 @@ while(!stop.IsCancellationRequested) {
                     (ok,result)=await sessions.Control(req.command,timeout.Token);break;
                 default:throw new InvalidDataException("未知操作");
             }
-            state=await sessions.Read(timeout.Token);state.ok=ok;state.result=result;
+            state=await sessions.Read(timeout.Token);state.ok=ok;state.result=req.action=="reload"?LyricReloadFeedback.Describe(state):result;
         } catch(Exception e) {
             // A rejected request preserves the current media session and lyrics.
             try {state=await sessions.Read(timeout.Token);}

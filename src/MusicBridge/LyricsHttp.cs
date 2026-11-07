@@ -6,7 +6,7 @@ public static class LyricsHttp {
     static readonly HttpClient direct=Create(false),system=Create(true);
     static HttpClient Create(bool useProxy) {
         var client=new HttpClient(new HttpClientHandler {UseCookies=false,UseProxy=useProxy}) {Timeout=Timeout.InfiniteTimeSpan};
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("DeepSpaceMusic/0.2.2 (+https://github.com/vugpgbwefwq47397-debug/deep-space-music)");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("DeepSpaceMusic/0.2.5 (+https://github.com/vugpgbwefwq47397-debug/deep-space-music)");
         return client;
     }
     public static async Task<JsonDocument> Read(string uri,CancellationToken token=default) {

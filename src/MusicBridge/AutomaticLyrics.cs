@@ -29,7 +29,7 @@ public sealed class AutomaticLyrics : ILyricsProvider {
             cached=(now,local.Get(title,artist,durationMs));localCache[key]=cached;
         }
         if(cached.lines.Count>0){Status="local";Source="本地 LRC";return cached.lines;}
-        if(durationMs<=0 || title.Length==0 || artist.Length==0){Status="waiting_for_metadata";return [];}
+        if(durationMs<=0 || title.Trim().Length==0 || artist.Trim().Length==0){Status="waiting_for_metadata";Diagnostic=title.Trim().Length==0 || artist.Trim().Length==0?"客户端尚未提供完整歌名和歌手，暂不猜测同名歌曲。":"客户端尚未提供歌曲时长，请先查看播放进度提示；重新匹配不会生成缺失的时钟。";return [];}
         if(jobs.TryGetValue(key,out var previous) && previous.IsCompleted && (!previous.IsCompletedSuccessfully || previous.Result.Lines.Count==0) && attempts.TryGetValue(key,out var time) && (now<time || now-time>=TimeSpan.FromSeconds(20)))jobs.TryRemove(key,out _);
         if(jobs.Count>=128){jobs.Clear();attempts.Clear();}
         var task=jobs.GetOrAdd(key,_=>{attempts[key]=now;return fetch!=null?Injected(title,artist,durationMs):FetchForPlatform(platform,id,title,artist,durationMs);});

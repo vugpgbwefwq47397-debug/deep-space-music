@@ -6,7 +6,7 @@ namespace DeepSpaceMusic;
 
 public static class BridgeDiagnostics {
     public static async Task<int> Run() {
-        Console.WriteLine("沉浸歌词 MusicBridge 0.2.2 只读诊断（不播放、不切歌、不读取账号凭据）");
+        Console.WriteLine("沉浸歌词 MusicBridge 0.2.5 只读诊断（不播放、不切歌、不读取账号凭据）");
         Console.WriteLine("Windows: "+Environment.OSVersion.VersionString+" / "+System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture);
         try {
             using var pipe=new NamedPipeClientStream(".","DeepSpaceMusic.v1",PipeDirection.InOut,PipeOptions.Asynchronous);

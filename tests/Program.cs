@@ -7,6 +7,7 @@ await OperationTests.Run(Check);
 await FeedbackTests.Run(Check);
 FollowupTests.Run(Check);
 CassetteClaimTests.Run(Check);
+KugouFeedbackTests.Run(Check);
 var simplifiedSample=LyricText.ToSimplified("為什麼天這麼安靜，所有的雲都跑到我這裡");
 Check(simplifiedSample == "为什么天这么安静，所有的云都跑到我这里","traditional lyric source displays Simplified Chinese: "+simplifiedSample);
 Check(LyricText.ToSimplified("哪里有彩虹告诉我") == "哪里有彩虹告诉我" && LyricText.ToSimplified("")=="","simplified and empty lyrics remain unchanged");

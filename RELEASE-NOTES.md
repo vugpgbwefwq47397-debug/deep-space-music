@@ -1,3 +1,11 @@
+# v0.2.5 · KuGou playback clock / 酷狗时钟修复
+
+- Reproduce KuGou returning song metadata but no SMTC timeline. Find the native playback bar using bounded, shallow container discovery, then read its actual elapsed/total clock on a background worker. Avoid whole-window searches through embedded pages, which exceeded two minutes in a local probe.
+- Accept verified title/artist ordering and separator variants. Reject conflicting clocks, wrong recordings and stale playback samples. No client activation, playlist changes, percentage-derived duration or guessed playback time.
+- Explain missing metadata, missing clock, stalled client reads and lyric lookup failures separately. “Reload lyrics” returns an explicit result and preserves an already working clock. The tools page keeps operation feedback separate from connection details.
+- **Update the external MusicBridge to 0.2.5 as well as the game mod. Workshop alone cannot update a separately running 0.2.2 bridge.**
+- Local KuGou 20.1.61.28014: live playback recovered real timing; “Always Online” returned 67 timed lines. A paused track held at 36 seconds, retained timing across lyric reload, and read back a client seek to 126 seconds. First clock discovery took roughly 8 seconds in the measured run. These results do not establish support for every version, skin or mini mode.
+
 # v0.2.4 · Static lyrics / 静态歌词
 
 - Add “静态” to the lyric-effect selector in F9/F10 and the official Mod settings. Selection applies immediately and saves with the existing animation setting.
